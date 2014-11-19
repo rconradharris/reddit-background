@@ -69,10 +69,11 @@ Pull images just from r/wallpaper with the top posts over the year::
     ./reddit-background wallpaper --timeframe year
 
 
-Set desktop 1 to r/CarPorn and desktop 2 to r/EarthPorn::
+Set desktop 1 to the hot posts from r/CarPorn and desktop 2 to new posts from r/EarthPorn::
 
-    ./reddit-background --desktop 1 CarPorn
-    ./reddit-background --desktop 2 EarthPorn
+    ./reddit-background --desktop 1 --sort hot CarPorn
+    ./reddit-background --desktop 2 --sort new EarthPorn
+
 
 
 Author
