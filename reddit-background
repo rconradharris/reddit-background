@@ -1,0 +1,159 @@
+#!/usr/bin/env python
+"""
+reddit-background
+
+Set Mac OS X desktop backrounds to images from pulled from Reddit.
+
+usage: ./reddit-backgrounds --seasonal <subreddits>
+
+Author: Rick Harris <rconradharris@gmail.com>
+"""
+import argparse
+import datetime
+import json
+import os
+import random
+import shutil
+import subprocess
+import sys
+import urllib2
+import uuid
+
+
+DOWNLOAD_DIRECTORY = "~/.background-images"
+
+def _run_apple_script(script):
+    return subprocess.check_output(['osascript', '-e', script])
+
+
+def _set_desktop_background(idx, filename):
+    script = 'tell application "System Events" to set picture of item'\
+             ' {idx} of (a reference to every desktop) to "{filename}"'\
+             .format(idx=idx, filename=filename)
+    return _run_apple_script(script)
+
+
+def _get_number_of_desktops():
+    script = 'tell application "System Events" to return count of a'\
+             ' reference to every desktop'
+    return int(_run_apple_script(script).strip())
+    
+
+def _set_desktop_backgrounds(filenames):
+    for idx, filename in enumerate(filenames):
+        _set_desktop_background(idx + 1, filename)
+
+
+def _urlopen(url):
+    user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" 
+    opener = urllib2.build_opener()
+    opener.addheaders = [('User-Agent', user_agent)]
+    return opener.open(url)
+    
+
+def _fetch_subreddit_top_data(subreddit, timespec, limit):
+    url = 'http://reddit.com/r/{subreddit}/top.json?t={timespec}&limit={limit}'
+    url = url.format(subreddit=subreddit, timespec=timespec, limit=limit)
+    response = _urlopen(url)
+    try:
+        return json.loads(response.read())
+    finally:
+        response.close()
+
+
+def _get_image_urls_from_data(data):
+    image_urls = []
+    for child in data['data']['children']:
+        url = child['data']['url']
+        if url.endswith('.jpg'):
+            image_urls.append(url)
+    return image_urls
+        
+
+def _download(url, filename):
+    response = _urlopen(url)
+    try:
+        with open(filename, 'w') as f:
+            f.write(response.read())
+    finally:
+        response.close()
+
+
+def _download_images(image_urls):
+    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+    filenames = []
+    for url in image_urls:
+        basename = "%s.jpg" % uuid.uuid4()
+        filename = os.path.join(dirname, basename)
+        _download(url, filename)
+        filenames.append(filename)
+    return filenames
+
+
+def set_desktop_background_from_urls(image_urls, shuffle=False):
+    if shuffle:
+        random.shuffle(image_urls)
+
+    num_desktops = _get_number_of_desktops()
+    image_urls = image_urls[:num_desktops]
+
+    filenames = _download_images(image_urls)
+
+    _set_desktop_backgrounds(filenames)
+
+
+def get_top_image_urls_for_subreddit(subreddit, timespec='week', max_items=25):
+    data = _fetch_subreddit_top_data(subreddit, timespec, max_items)
+    return _get_image_urls_from_data(data)
+
+
+def _clear_download_directory():
+    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+    if os.path.exists(dirname):
+        shutil.rmtree(dirname)
+    os.makedirs(dirname)
+
+
+def get_northern_hemisphere_season():
+    """Source: http://stackoverflow.com/questions/16139306/determine-season-given-timestamp-in-python-using-datetime"""
+    day = datetime.date.today().timetuple().tm_yday
+    spring = range(80, 172)
+    summer = range(172, 264)
+    autumn = range(264, 355)
+    if day in spring:
+      return 'spring'
+    elif day in summer:
+      return 'summer'
+    elif day in autumn:
+      return 'autumn'
+    else:
+      return 'winter'
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Set desktop background image from reddit')
+    parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='+',
+                       help='a list of subreddits')
+    parser.add_argument('--seasonal', action='store_true',
+                        help='whether to mixin sesasonal images')
+
+    args = parser.parse_args()
+
+    all_urls = []
+    for subreddit in args.subreddits: 
+        image_urls = get_top_image_urls_for_subreddit(subreddit)
+        all_urls.extend(image_urls)
+
+    # Mix in seasonal images
+    if args.seasonal:
+        season = get_northern_hemisphere_season()
+        image_urls = get_top_image_urls_for_subreddit('%sporn' % season)
+        all_urls.extend(image_urls)
+
+    _clear_download_directory()
+    set_desktop_background_from_urls(all_urls, shuffle=True)
+
+
+if __name__ == "__main__":
+    main()
