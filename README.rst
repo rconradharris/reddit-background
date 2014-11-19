@@ -14,6 +14,7 @@ Features
   each subreddit)
 * Dynamic subreddits (for example ``{seasonal}`` will automatically choose the
   correct subreddit based on the current month)
+* Specify minimum resolution for images
 
 
 Installation
@@ -34,6 +35,7 @@ Installation
     # Use across all desktops
     [default]
     subreddits={seasonal}
+    min_resolution=2000x1000
 
     # Override to use these subreddits on desktop 1
     #[desktop1]
@@ -137,9 +139,9 @@ Seasonal images plus images pulled from r/EarthPorn and CarPorn::
     ./reddit-background {seasonal} EarthPorn CarPorn
 
 
-Pull images just from r/wallpaper with the top 10 posts over the year::
+Pull images just from r/wallpaper with the top 10 posts over the year with a minimum resolution of 1000x500::
 
-    ./reddit-background wallpaper:top:10:year
+    ./reddit-background --min-resolution=1000x500 wallpaper:top:10:year
 
 
 Set desktop 1 to the 5 hottest posts from r/CarPorn and desktop 2 to new posts from r/EarthPorn::

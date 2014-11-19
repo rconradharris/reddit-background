@@ -27,6 +27,7 @@ import datetime
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,7 @@ import uuid
 
 CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
+RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 
 def _run_apple_script(script):
     return subprocess.check_output(['osascript', '-e', script])
@@ -134,22 +136,47 @@ class Subreddit(object):
             response.close()
 
     @staticmethod
-    def _get_image_urls_from_data(data):
+    def _meets_resolution_criteria(title, min_resolution):
+        if not min_resolution:
+            return True
+
+        min_x, min_y = map(int, min_resolution.split('x'))
+
+        match = RE_RESOLUTION_IN_TITLE.match(title)
+
+        if not match:
+            return False
+
+        resolution_x = int(match.group(1))
+        resolution_y = int(match.group(2))
+
+        return resolution_x >= min_x and resolution_y >= min_y
+
+    @classmethod
+    def _get_image_urls_from_data(cls, data, min_resolution=None):
         image_urls = []
         for child in data['data']['children']:
+            title = child['data']['title']
             url = child['data']['url']
-            if url.endswith('.jpg'):
-                image_urls.append(url)
-            elif 'imgur.com' in url:
+
+            if 'imgur.com' in url and not url.endswith('.jpg'):
                 url += '.jpg'
-                image_urls.append(url)
+
+            if not url.endswith('.jpg'):
+                continue
+
+            if not cls._meets_resolution_criteria(title, min_resolution):
+                continue
+
+            image_urls.append(url)
 
         return image_urls
 
-    def fetch_image_urls(self):
+    def fetch_image_urls(self, min_resolution=None):
         data = self._fetch_subreddit_data(
                 self.name, self.sort, self.limit, self.timeframe)
-        return self._get_image_urls_from_data(data)
+        return self._get_image_urls_from_data(
+                data, min_resolution=min_resolution)
 
     @classmethod
     def create_from_token_parts(cls, token_parts):
@@ -158,6 +185,9 @@ class Subreddit(object):
         for arg, value in zip(args, token_parts):
             ddict[arg] = value
         return cls(**ddict)
+
+    def __repr__(self):
+        return '<Subreddit r/{0}>'.format(self.name)
 
 
 def _parse_subreddit_token(token):
@@ -176,7 +206,7 @@ def _get_desktop_range():
     return map(lambda x: x + 1, range(num_desktops))
 
 
-def _read_config_file(subreddits_by_desktop):
+def _read_config_file(desktop_info):
     path = os.path.expanduser(CONFIG_PATH)
 
     if not os.path.exists(path):
@@ -187,14 +217,24 @@ def _read_config_file(subreddits_by_desktop):
     with open(path) as f:
         config.readfp(f)
 
-    def get_subreddits_for_section(section):
+    def set_configs_for_section(section):
         tokens = map(lambda x: x.strip(),
                      config.get(section, 'subreddits').split(','))
+
         subreddits = []
         for token in tokens:
             subreddit = _parse_subreddit_token(token)
             subreddits.append(subreddit)
-        return subreddits
+
+        if subreddits:
+            desktop_info[desktop]['subreddits'] = subreddits
+
+        try:
+            min_resolution = config.get(section, 'min_resolution')
+        except ConfigParser.NoOptionError:
+            pass
+        else:
+            desktop_info[desktop]['min_resolution'] = min_resolution
 
     sections = config.sections()
 
@@ -203,14 +243,12 @@ def _read_config_file(subreddits_by_desktop):
     for desktop in desktops:
         section = 'desktop{0}'.format(desktop)
         if section in sections:
-            subreddits = get_subreddits_for_section(section)
-            subreddits_by_desktop[desktop] = subreddits
+            set_configs_for_section(section)
         elif 'default' in sections:
-            subreddits = get_subreddits_for_section('default')
-            subreddits_by_desktop[desktop] = subreddits
+            set_configs_for_section('default')
 
 
-def _handle_cli_options(subreddits_by_desktop):
+def _handle_cli_options(desktop_info):
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
@@ -218,6 +256,9 @@ def _handle_cli_options(subreddits_by_desktop):
     parser.add_argument('--desktop', type=int, default=0,
             help='Only set background for this desktop'
                  ' (default: Set all desktops)')
+    parser.add_argument('--min-resolution',
+            help='Minimum resolution of selected image'
+                 ' (default: 1024x768)')
 
     args = parser.parse_args()
 
@@ -226,38 +267,50 @@ def _handle_cli_options(subreddits_by_desktop):
     else:
         desktops = _get_desktop_range()
 
-    for token in args.subreddits:
-        subreddit = _parse_subreddit_token(token)
-        for desktop in desktops:
-            subreddits_by_desktop[desktop].append(subreddit)
+    for desktop in desktops:
+        if args.min_resolution:
+            desktop_info[desktop]['min_resolution'] = args.min_resolution
+
+        subreddits = []
+        for token in args.subreddits:
+            subreddit = _parse_subreddit_token(token)
+            subreddits.append(subreddit)
+
+        if subreddits:
+            desktop_info[desktop]['subreddits'] = subreddits
 
 
-def _use_defaults(subreddits_by_desktop):
+def _use_defaults(desktop_info):
     desktops = _get_desktop_range()
     for desktop in desktops:
         # Seasonal seems like a pretty good default
         subreddit = _parse_subreddit_token('{seasonal}')
-        subreddits_by_desktop[desktop].append(subreddit)
+        desktop_info[desktop]['subreddits'] = [subreddit]
+
+        desktop_info[desktop]['min_resolution'] = '1024x768'
 
 
 def main():
-    subreddits_by_desktop = collections.defaultdict(list)
+    desktop_info = collections.defaultdict(dict)
 
-    _handle_cli_options(subreddits_by_desktop)
+    _handle_cli_options(desktop_info)
 
-    if not subreddits_by_desktop:
-        _read_config_file(subreddits_by_desktop)
+    if not desktop_info:
+        _read_config_file(desktop_info)
 
-    if not subreddits_by_desktop:
-        _use_defaults(subreddits_by_desktop)
+    if not desktop_info:
+        _use_defaults(desktop_info)
 
     _clear_download_directory()
 
-    for desktop, subreddits in subreddits_by_desktop.iteritems():
+    for desktop, info in desktop_info.iteritems():
         # Accumulate images URL across subreddits
         image_urls = []
-        for subreddit in subreddits:
-            image_urls.extend(subreddit.fetch_image_urls())
+        for subreddit in info['subreddits']:
+            subreddit_urls = subreddit.fetch_image_urls(
+                    min_resolution=info['min_resolution'])
+
+            image_urls.extend(subreddit_urls)
 
         # Pick one
         filename = _select_and_download_image_for_desktop(image_urls)
