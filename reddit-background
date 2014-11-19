@@ -39,11 +39,6 @@ def _get_number_of_desktops():
     return int(_run_apple_script(script).strip())
     
 
-def _set_desktop_backgrounds(filenames):
-    for idx, filename in enumerate(filenames):
-        _set_desktop_background(idx + 1, filename)
-
-
 def _urlopen(url):
     user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" 
     opener = urllib2.build_opener()
@@ -90,16 +85,21 @@ def _download_images(image_urls):
     return filenames
 
 
-def set_desktop_background_from_urls(image_urls, shuffle=False):
-    if shuffle:
-        random.shuffle(image_urls)
+def set_desktop_background_from_urls(image_urls, desktop=0):
+    random.shuffle(image_urls)
 
-    num_desktops = _get_number_of_desktops()
+    num_desktops = 1 if desktop else _get_number_of_desktops()
     image_urls = image_urls[:num_desktops]
 
     filenames = _download_images(image_urls)
 
-    _set_desktop_backgrounds(filenames)
+    for idx, filename in enumerate(filenames):
+        if desktop:
+            idx += desktop
+        else:
+            idx += 1
+
+        _set_desktop_background(idx, filename)
 
 
 def get_top_image_urls_for_subreddit(subreddit, timespec='week', max_items=25):
@@ -134,9 +134,12 @@ def main():
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
-                       help='a list of subreddits')
+                       help='A list of subreddits')
     parser.add_argument('--seasonal', action='store_true',
-                        help='whether to mixin sesasonal images')
+                        help='Whether to mix in sesasonal images')
+    parser.add_argument('--desktop', type=int, default=0,
+            help='Only set background for this desktop'
+                 ' (default: Set all desktops)')
 
     args = parser.parse_args()
 
@@ -156,7 +159,7 @@ def main():
         sys.exit(1)
 
     _clear_download_directory()
-    set_desktop_background_from_urls(all_urls, shuffle=True)
+    set_desktop_background_from_urls(all_urls, desktop=args.desktop)
 
 
 if __name__ == "__main__":

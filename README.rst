@@ -69,6 +69,12 @@ Pull images just from r/wallpaper::
     ./reddit-background wallpaper
 
 
+Set desktop 1 to r/CarPorn and desktop 2 to r/EarthPorn::
+
+    ./reddit-background --desktop 1 CarPorn
+    ./reddit-background --desktop 2 EarthPorn
+
+
 Author
 ======
 
