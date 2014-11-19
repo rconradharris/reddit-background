@@ -46,32 +46,6 @@ def _urlopen(url):
     return opener.open(url)
     
 
-def _fetch_subreddit_data(subreddit, sort, timeframe, limit):
-    url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
-    url = url.format(subreddit=subreddit,
-                     sort=sort,
-                     timeframe=timeframe,
-                     limit=limit)
-    response = _urlopen(url)
-    try:
-        return json.loads(response.read())
-    finally:
-        response.close()
-
-
-def _get_image_urls_from_data(data):
-    image_urls = []
-    for child in data['data']['children']:
-        url = child['data']['url']
-        if url.endswith('.jpg'):
-            image_urls.append(url)
-        elif 'imgur.com' in url:
-            url += '.jpg'
-            image_urls.append(url)
-
-    return image_urls
-        
-
 def _download(url, filename):
     response = _urlopen(url)
     try:
@@ -109,11 +83,6 @@ def set_desktop_background_from_urls(image_urls, desktop=0):
         _set_desktop_background(idx, filename)
 
 
-def get_image_urls_for_subreddit(subreddit, sort='top', timeframe='week', max_items=25):
-    data = _fetch_subreddit_data(subreddit, sort, timeframe, max_items)
-    return _get_image_urls_from_data(data)
-
-
 def _clear_download_directory():
     dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
     if os.path.exists(dirname):
@@ -137,6 +106,54 @@ def get_northern_hemisphere_season():
       return 'winter'
 
 
+class Subreddit(object):
+    def __init__(self, name, sort='top', limit=25, timeframe='week'):
+        self.name = name
+        self.sort = sort
+        self.limit = limit
+        self.timeframe = timeframe
+
+    @staticmethod
+    def _fetch_subreddit_data(subreddit, sort, limit, timeframe):
+        url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
+        url = url.format(subreddit=subreddit,
+                         sort=sort,
+                         timeframe=timeframe,
+                         limit=limit)
+        response = _urlopen(url)
+        try:
+            return json.loads(response.read())
+        finally:
+            response.close()
+
+    @staticmethod
+    def _get_image_urls_from_data(data):
+        image_urls = []
+        for child in data['data']['children']:
+            url = child['data']['url']
+            if url.endswith('.jpg'):
+                image_urls.append(url)
+            elif 'imgur.com' in url:
+                url += '.jpg'
+                image_urls.append(url)
+
+        return image_urls
+
+    def fetch_image_urls(self):
+        data = self._fetch_subreddit_data(
+                self.name, self.sort, self.limit, self.timeframe)
+        return self._get_image_urls_from_data(data)
+
+    @classmethod
+    def create_from_token(cls, token):
+        args = ('name', 'sort', 'limit', 'timeframe')
+        parts = token.split(':')
+        ddict = {}
+        for arg, value in zip(args, parts):
+            ddict[arg] = value
+        return cls(**ddict)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
@@ -147,28 +164,22 @@ def main():
                  ' (default: Set all desktops)')
     parser.add_argument('--seasonal', action='store_true',
                         help='Whether to mix in sesasonal images')
-    parser.add_argument('--sort', type=str, default='top',
-            help='Sort reddit posts using this method'
-                 ' (top, hot, new, etc...) (default: top)')
-    parser.add_argument('--timeframe', type=str, default='week',
-            help='Only use reddit posts over this timeframe (default: week)')
-
 
     args = parser.parse_args()
 
     all_urls = []
-    def add_subreddit(subreddit):
-        all_urls.extend(get_image_urls_for_subreddit(subreddit,
-                                                     sort=args.sort,
-                                                     timeframe=args.timeframe))
 
-    for subreddit in args.subreddits: 
-        add_subreddit(subreddit)
+    for token in args.subreddits:
+        subreddit = Subreddit.create_from_token(token)
+        image_urls = subreddit.fetch_image_urls()
+        all_urls.extend(image_urls)
 
     # Mix in seasonal images
     if args.seasonal:
         season = get_northern_hemisphere_season()
-        add_subreddit('%sporn' % season)
+        subreddit = Subreddit.create_from_token('%sporn' % season)
+        image_urls = subreddit.fetch_image_urls()
+        all_urls.extend(image_urls)
 
     if not all_urls:
         print >> sys.stderr, "error: No images found"

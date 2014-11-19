@@ -64,16 +64,41 @@ Seasonal images plus images pulled from r/earthporn and carporn::
     ./reddit-background --seasonal EarthPorn CarPorn
 
 
-Pull images just from r/wallpaper with the top posts over the year::
+Pull images just from r/wallpaper with the top 10 posts over the year::
 
-    ./reddit-background wallpaper --timeframe year
+    ./reddit-background wallpaper:top:10:year
 
 
-Set desktop 1 to the hot posts from r/CarPorn and desktop 2 to new posts from r/EarthPorn::
+Set desktop 1 to the 5 hottest posts from r/CarPorn and desktop 2 to new posts from r/EarthPorn::
 
-    ./reddit-background --desktop 1 --sort hot CarPorn
-    ./reddit-background --desktop 2 --sort new EarthPorn
+    ./reddit-background --desktop 1 CarPorn:hot:5
+    ./reddit-background --desktop 2 EarthPorn:new
 
+
+Subreddit Format
+================
+
+
+Subreddits are described using the following format::
+
+    <subreddit>:[sort]:[limit]:[timeframe]
+
+``sort`` defaults to 'top'. Available: 'hot', 'new', 'rising', 'controversial', 'top', 'gilded' and 'promoted'
+``limit`` defaults to 25
+``timeframe`` defaults to 'week'. Available: 'hour', 'day', 'week', 'month', 'year', 'all'
+
+So, if you want to include images from CarPorn using a the top 10 posts over
+the year, you would use::
+
+    CarPorn:top:10:year
+
+
+If you only want the 5 newest EarthPorn images, you would use::
+
+    EarthPorn:new:5
+
+
+Only 'top' and 'controversial' use ``timeframe``
 
 
 Author
