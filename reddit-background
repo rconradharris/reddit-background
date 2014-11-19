@@ -20,7 +20,9 @@ AUTHOR
 
     Rick Harris <rconradharris@gmail.com>
 """
+import ConfigParser
 import argparse
+import collections
 import datetime
 import json
 import os
@@ -32,6 +34,7 @@ import urllib2
 import uuid
 
 
+CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
 
 def _run_apple_script(script):
@@ -75,38 +78,16 @@ def _download_image(image_url):
     return filename
 
 
-def _select_and_download_images(image_urls, desktop=0):
+def _select_and_download_image_for_desktop(image_urls):
     image_urls = image_urls[:]
 
     random.shuffle(image_urls)
 
-    num_desktops = 1 if desktop else _get_number_of_desktops()
-
-    downloaded = 0
-    filenames = []
     for image_url in image_urls:
-        if downloaded == num_desktops:
-            break
-
         try:
-            filename = _download_image(image_url)
+            return _download_image(image_url)
         except urllib2.HTTPError:
             pass  # Try next image...
-        else:
-            downloaded += 1
-            filenames.append(filename)
-
-    return filenames
-
-
-def _set_desktop_backgrounds(filenames, desktop=0):
-    for idx, filename in enumerate(filenames):
-        if desktop:
-            idx += desktop
-        else:
-            idx += 1
-
-        _set_desktop_background(idx, filename)
 
 
 def _clear_download_directory():
@@ -190,7 +171,46 @@ def _parse_subreddit_token(token):
     return Subreddit.create_from_token_parts(token_parts)
 
 
-def main():
+def _get_desktop_range():
+    num_desktops = _get_number_of_desktops()
+    return map(lambda x: x + 1, range(num_desktops))
+
+
+def _read_config_file(subreddits_by_desktop):
+    path = os.path.expanduser(CONFIG_PATH)
+
+    if not os.path.exists(path):
+        return
+
+    config = ConfigParser.ConfigParser()
+
+    with open(path) as f:
+        config.readfp(f)
+
+    def get_subreddits_for_section(section):
+        tokens = map(lambda x: x.strip(),
+                     config.get(section, 'subreddits').split(','))
+        subreddits = []
+        for token in tokens:
+            subreddit = _parse_subreddit_token(token)
+            subreddits.append(subreddit)
+        return subreddits
+
+    sections = config.sections()
+
+    desktops = _get_desktop_range()
+
+    for desktop in desktops:
+        section = 'desktop{0}'.format(desktop)
+        if section in sections:
+            subreddits = get_subreddits_for_section(section)
+            subreddits_by_desktop[desktop] = subreddits
+        elif 'default' in sections:
+            subreddits = get_subreddits_for_section('default')
+            subreddits_by_desktop[desktop] = subreddits
+
+
+def _handle_cli_options(subreddits_by_desktop):
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
@@ -201,20 +221,39 @@ def main():
 
     args = parser.parse_args()
 
-    image_urls = []
+    if args.desktop:
+        desktops = [args.desktop]
+    else:
+        desktops = _get_desktop_range()
+
     for token in args.subreddits:
         subreddit = _parse_subreddit_token(token)
-        image_urls.extend(subreddit.fetch_image_urls())
+        for desktop in desktops:
+            subreddits_by_desktop[desktop].append(subreddit)
 
-    if not image_urls:
-        print >> sys.stderr, "error: No images found"
-        sys.exit(1)
+
+def main():
+    subreddits_by_desktop = collections.defaultdict(list)
+
+    _handle_cli_options(subreddits_by_desktop)
+
+    if not subreddits_by_desktop:
+        _read_config_file(subreddits_by_desktop)
 
     _clear_download_directory()
 
-    filenames = _select_and_download_images(image_urls, desktop=args.desktop)
+    for desktop, subreddits in subreddits_by_desktop.iteritems():
+        # Accumulate images URL across subreddits
+        image_urls = []
+        for subreddit in subreddits:
+            image_urls.extend(subreddit.fetch_image_urls())
 
-    _set_desktop_backgrounds(filenames, desktop=args.desktop)
+        # Pick one
+        filename = _select_and_download_image_for_desktop(image_urls)
+
+        # If we found one, set the background
+        if filename:
+            _set_desktop_background(desktop, filename)
 
 
 if __name__ == "__main__":
