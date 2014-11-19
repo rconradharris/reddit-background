@@ -151,6 +151,10 @@ def main():
         image_urls = get_top_image_urls_for_subreddit('%sporn' % season)
         all_urls.extend(image_urls)
 
+    if not all_urls:
+        print >> sys.stderr, "error: No images found"
+        sys.exit(1)
+
     _clear_download_directory()
     set_desktop_background_from_urls(all_urls, shuffle=True)
 
