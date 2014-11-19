@@ -67,15 +67,12 @@ def _download(url, filename):
         response.close()
 
 
-def _download_images(image_urls):
+def _download_image(image_url):
     dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
-    filenames = []
-    for url in image_urls:
-        basename = "%s.jpg" % uuid.uuid4()
-        filename = os.path.join(dirname, basename)
-        _download(url, filename)
-        filenames.append(filename)
-    return filenames
+    basename = "%s.jpg" % uuid.uuid4()
+    filename = os.path.join(dirname, basename)
+    _download(image_url, filename)
+    return filename
 
 
 def _select_and_download_images(image_urls, desktop=0):
@@ -84,9 +81,20 @@ def _select_and_download_images(image_urls, desktop=0):
     random.shuffle(image_urls)
 
     num_desktops = 1 if desktop else _get_number_of_desktops()
-    image_urls = image_urls[:num_desktops]
 
-    filenames = _download_images(image_urls)
+    downloaded = 0
+    filenames = []
+    for image_url in image_urls:
+        if downloaded == num_desktops:
+            break
+
+        try:
+            filename = _download_image(image_url)
+        except urllib2.HTTPError:
+            pass  # Try next image...
+        else:
+            downloaded += 1
+            filenames.append(filename)
 
     return filenames
 
