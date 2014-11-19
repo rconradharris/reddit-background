@@ -19,8 +19,7 @@ Installation
 
 1. Clone the repo::
 
-   git clone <url>
-
+   git clone https://github.com/rconradharris/reddit-backgrounds.git
 
 2. Copy exectuable to ``/usr/local/bin``::
 
