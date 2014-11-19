@@ -46,9 +46,9 @@ def _urlopen(url):
     return opener.open(url)
     
 
-def _fetch_subreddit_top_data(subreddit, timespec, limit):
-    url = 'http://reddit.com/r/{subreddit}/top.json?t={timespec}&limit={limit}'
-    url = url.format(subreddit=subreddit, timespec=timespec, limit=limit)
+def _fetch_subreddit_top_data(subreddit, timeframe, limit):
+    url = 'http://reddit.com/r/{subreddit}/top.json?t={timeframe}&limit={limit}'
+    url = url.format(subreddit=subreddit, timeframe=timeframe, limit=limit)
     response = _urlopen(url)
     try:
         return json.loads(response.read())
@@ -62,6 +62,10 @@ def _get_image_urls_from_data(data):
         url = child['data']['url']
         if url.endswith('.jpg'):
             image_urls.append(url)
+        elif 'imgur.com' in url:
+            url += '.jpg'
+            image_urls.append(url)
+
     return image_urls
         
 
@@ -102,8 +106,8 @@ def set_desktop_background_from_urls(image_urls, desktop=0):
         _set_desktop_background(idx, filename)
 
 
-def get_top_image_urls_for_subreddit(subreddit, timespec='week', max_items=25):
-    data = _fetch_subreddit_top_data(subreddit, timespec, max_items)
+def get_top_image_urls_for_subreddit(subreddit, timeframe='week', max_items=25):
+    data = _fetch_subreddit_top_data(subreddit, timeframe, max_items)
     return _get_image_urls_from_data(data)
 
 
@@ -135,17 +139,21 @@ def main():
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
                        help='A list of subreddits')
-    parser.add_argument('--seasonal', action='store_true',
-                        help='Whether to mix in sesasonal images')
     parser.add_argument('--desktop', type=int, default=0,
             help='Only set background for this desktop'
                  ' (default: Set all desktops)')
+    parser.add_argument('--seasonal', action='store_true',
+                        help='Whether to mix in sesasonal images')
+    parser.add_argument('--timeframe', type=str, default='week',
+            help='Top reddit posts over this timeframe (default: week)')
+
 
     args = parser.parse_args()
 
     all_urls = []
     for subreddit in args.subreddits: 
-        image_urls = get_top_image_urls_for_subreddit(subreddit)
+        image_urls = get_top_image_urls_for_subreddit(
+                subreddit, timeframe=args.timeframe)
         all_urls.extend(image_urls)
 
     # Mix in seasonal images

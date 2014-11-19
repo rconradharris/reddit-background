@@ -64,9 +64,9 @@ Seasonal images plus images pulled from r/earthporn and carporn::
     ./reddit-background --seasonal EarthPorn CarPorn
 
 
-Pull images just from r/wallpaper::
+Pull images just from r/wallpaper with the top posts over the year::
 
-    ./reddit-background wallpaper
+    ./reddit-background wallpaper --timeframe year
 
 
 Set desktop 1 to r/CarPorn and desktop 2 to r/EarthPorn::
