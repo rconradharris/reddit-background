@@ -232,6 +232,14 @@ def _handle_cli_options(subreddits_by_desktop):
             subreddits_by_desktop[desktop].append(subreddit)
 
 
+def _use_defaults(subreddits_by_desktop):
+    desktops = _get_desktop_range()
+    for desktop in desktops:
+        # Seasonal seems like a pretty good default
+        subreddit = _parse_subreddit_token('{seasonal}')
+        subreddits_by_desktop[desktop].append(subreddit)
+
+
 def main():
     subreddits_by_desktop = collections.defaultdict(list)
 
@@ -239,6 +247,9 @@ def main():
 
     if not subreddits_by_desktop:
         _read_config_file(subreddits_by_desktop)
+
+    if not subreddits_by_desktop:
+        _use_defaults(subreddits_by_desktop)
 
     _clear_download_directory()
 

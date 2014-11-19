@@ -29,7 +29,7 @@ Installation
     cp reddit-background /usr/local/bin
 
 3. Create a config file located at ``~/.reddit-background.conf`` and edit to
-   your liking::
+   your liking (You can skip this step and it will default to seasonal images)::
 
     # Use across all desktops
     [default]
@@ -91,8 +91,8 @@ Dynamic Subreddits
 ==================
 
 Dynamic subreddits are automatically chosen according to some criteria. For
-example the ``{seasonal}`` subreddit will rotate with the seasons: in Spring
-it maps to r/SpringPorn, in Winter to r/WinterPorn, etc.
+example the ``{seasonal}`` subreddit will rotate with the seasons: in the spring
+it maps to r/SpringPorn, in winter to r/WinterPorn, etc.
 
 Right now, ``{seasonal}`` is the only dynamic subreddit available.
 
@@ -104,7 +104,7 @@ You can use dynamic subreddits with additional options like::
 Config File
 ===========
 
-An optional configuration file can be provided by creating a file at ``~/.reddit-background.conf``.
+reddit-background will look for a config file located at ``~/.reddit-background.conf``.
 
 The format is::
 
@@ -152,4 +152,4 @@ Author
 ======
 
 Rick Harris <rconradharris@gmail.com>
-@rconradharris
+Twitter: @rconradharris
