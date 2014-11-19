@@ -133,7 +133,7 @@ def get_northern_hemisphere_season():
 def main():
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
-    parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='+',
+    parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
                        help='a list of subreddits')
     parser.add_argument('--seasonal', action='store_true',
                         help='whether to mixin sesasonal images')
