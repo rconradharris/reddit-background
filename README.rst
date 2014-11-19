@@ -9,13 +9,43 @@ Features
 ========
 
 * Handles multiple desktops (each desktop gets its own image)
-* Handles multiple subreddits
+* Handles multiple subreddits (subscribe to r/EarthPorn, r/Wallpapers, etc...)
 * Seasonal awareness (if it's spring, automatically include images from
   r/SpringPorn)
 
 
-Usage
-=====
+Installation
+============
+
+1. Clone the repo::
+
+   git clone <url>
+
+
+2. Copy exectuable to ``/usr/local/bin``::
+
+    cd reddit-background
+    cp reddit-background /usr/local/bin
+
+3. Open your crontab::
+
+   crontab -e
+
+4. And paste the following line::
+
+    0 * * * * /usr/local/bin/reddit-background --seasonal wallpaper
+
+5. Edit the subreddits in the line to match your preferences
+
+6. Save and quit the editor
+
+7. Enjoy!
+
+
+Manual Usage
+============
+
+You can also change backgrounds on demand by running the command manually.
 
 
 Just (northern hemisphere) seasonal images::
