@@ -1,12 +1,24 @@
 #!/usr/bin/env python
 """
-reddit-background
+NAME
 
-Set Mac OS X desktop backrounds to images from pulled from Reddit.
+    reddit-background
 
-usage: ./reddit-backgrounds --seasonal <subreddits>
+SYNOPSIS
 
-Author: Rick Harris <rconradharris@gmail.com>
+    reddit-backgrounds [--desktop <DESKTOP>] [-h --help] [SUBREDDITS]
+
+DESCRIPTION
+
+    Set Mac OS X desktop backgrounds to images from pulled from Reddit.
+
+EXAMPLES
+
+    reddit-backgrounds CarPorn:top:10:week {seasonal} EarthPorn:new
+
+AUTHOR
+
+    Rick Harris <rconradharris@gmail.com>
 """
 import argparse
 import datetime
@@ -66,7 +78,9 @@ def _download_images(image_urls):
     return filenames
 
 
-def set_desktop_background_from_urls(image_urls, desktop=0):
+def _select_and_download_images(image_urls, desktop=0):
+    image_urls = image_urls[:]
+
     random.shuffle(image_urls)
 
     num_desktops = 1 if desktop else _get_number_of_desktops()
@@ -74,6 +88,10 @@ def set_desktop_background_from_urls(image_urls, desktop=0):
 
     filenames = _download_images(image_urls)
 
+    return filenames
+
+
+def _set_desktop_backgrounds(filenames, desktop=0):
     for idx, filename in enumerate(filenames):
         if desktop:
             idx += desktop
@@ -90,7 +108,7 @@ def _clear_download_directory():
     os.makedirs(dirname)
 
 
-def get_northern_hemisphere_season():
+def _get_northern_hemisphere_season():
     """Source: http://stackoverflow.com/questions/16139306/determine-season-given-timestamp-in-python-using-datetime"""
     day = datetime.date.today().timetuple().tm_yday
     spring = range(80, 172)
@@ -159,7 +177,7 @@ def _parse_subreddit_token(token):
     name = token_parts[0]
 
     if name == '{seasonal}':
-        token_parts[0] = '%sporn' % get_northern_hemisphere_season()
+        token_parts[0] = '%sporn' % _get_northern_hemisphere_season()
 
     return Subreddit.create_from_token_parts(token_parts)
 
@@ -175,18 +193,20 @@ def main():
 
     args = parser.parse_args()
 
-    all_urls = []
+    image_urls = []
     for token in args.subreddits:
         subreddit = _parse_subreddit_token(token)
-        image_urls = subreddit.fetch_image_urls()
-        all_urls.extend(image_urls)
+        image_urls.extend(subreddit.fetch_image_urls())
 
-    if not all_urls:
+    if not image_urls:
         print >> sys.stderr, "error: No images found"
         sys.exit(1)
 
     _clear_download_directory()
-    set_desktop_background_from_urls(all_urls, desktop=args.desktop)
+
+    filenames = _select_and_download_images(image_urls, desktop=args.desktop)
+
+    _set_desktop_backgrounds(filenames, desktop=args.desktop)
 
 
 if __name__ == "__main__":
