@@ -34,11 +34,11 @@ Installation
 
    For hourly::
 
-        0 * * * * /usr/local/bin/reddit-background --seasonal wallpaper
+        0 * * * * /usr/local/bin/reddit-background {seasonal} wallpaper
 
    For daily at 09:00::
 
-        0 9 * * * /usr/local/bin/reddit-background --seasonal wallpaper
+        0 9 * * * /usr/local/bin/reddit-background {seasonal} wallpaper
 
 
 5. Edit the subreddits in the line to match your preferences
@@ -56,12 +56,12 @@ You can also change backgrounds on demand by running the command manually.
 
 Just (northern hemisphere) seasonal images::
 
-    ./reddit-background --seasonal
+    ./reddit-background {seasonal}
 
 
-Seasonal images plus images pulled from r/earthporn and carporn::
+Seasonal images plus images pulled from r/EarthPorn and CarPorn::
 
-    ./reddit-background --seasonal EarthPorn CarPorn
+    ./reddit-background {seasonal} EarthPorn CarPorn
 
 
 Pull images just from r/wallpaper with the top 10 posts over the year::
@@ -99,6 +99,20 @@ If you only want the 5 newest EarthPorn images, you would use::
 
 
 Only 'top' and 'controversial' use ``timeframe``
+
+
+Dynamic Subreddits
+==================
+
+Dynamic subreddits are automatically chosen according to some criteria. For
+example the ``{seasonal}`` subreddit will rotate with the seasons: in Spring
+it maps to r/SpringPorn, in Winter to r/WinterPorn, etc.
+
+Right now, ``{seasonal}`` is the only dynamic subreddit available.
+
+You can use dynamic subreddits with additional options like::
+
+    {seasonal}:top:10:day
 
 
 Author

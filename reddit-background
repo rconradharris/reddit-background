@@ -145,13 +145,23 @@ class Subreddit(object):
         return self._get_image_urls_from_data(data)
 
     @classmethod
-    def create_from_token(cls, token):
+    def create_from_token_parts(cls, token_parts):
         args = ('name', 'sort', 'limit', 'timeframe')
-        parts = token.split(':')
         ddict = {}
-        for arg, value in zip(args, parts):
+        for arg, value in zip(args, token_parts):
             ddict[arg] = value
         return cls(**ddict)
+
+
+def _parse_subreddit_token(token):
+    token_parts = token.split(':')
+
+    name = token_parts[0]
+
+    if name == '{seasonal}':
+        token_parts[0] = '%sporn' % get_northern_hemisphere_season()
+
+    return Subreddit.create_from_token_parts(token_parts)
 
 
 def main():
@@ -162,22 +172,12 @@ def main():
     parser.add_argument('--desktop', type=int, default=0,
             help='Only set background for this desktop'
                  ' (default: Set all desktops)')
-    parser.add_argument('--seasonal', action='store_true',
-                        help='Whether to mix in sesasonal images')
 
     args = parser.parse_args()
 
     all_urls = []
-
     for token in args.subreddits:
-        subreddit = Subreddit.create_from_token(token)
-        image_urls = subreddit.fetch_image_urls()
-        all_urls.extend(image_urls)
-
-    # Mix in seasonal images
-    if args.seasonal:
-        season = get_northern_hemisphere_season()
-        subreddit = Subreddit.create_from_token('%sporn' % season)
+        subreddit = _parse_subreddit_token(token)
         image_urls = subreddit.fetch_image_urls()
         all_urls.extend(image_urls)
 
