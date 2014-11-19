@@ -30,9 +30,16 @@ Installation
 
    crontab -e
 
-4. And paste the following line::
+4. And paste one of the following lines
 
-    0 * * * * /usr/local/bin/reddit-background --seasonal wallpaper
+   For hourly::
+
+        0 * * * * /usr/local/bin/reddit-background --seasonal wallpaper
+
+   For daily at 09:00::
+
+        0 9 * * * /usr/local/bin/reddit-background --seasonal wallpaper
+
 
 5. Edit the subreddits in the line to match your preferences
 
