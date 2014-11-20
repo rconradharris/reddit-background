@@ -38,6 +38,8 @@ import uuid
 CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
+DEFAULT_MIN_RESOLUTION = '1024x768'
+
 
 def _run_apple_script(script):
     return subprocess.check_output(['osascript', '-e', script])
@@ -212,40 +214,40 @@ def _read_config_file(desktop_info):
     if not os.path.exists(path):
         return
 
-    config = ConfigParser.ConfigParser()
-
-    with open(path) as f:
-        config.readfp(f)
-
-    def set_configs_for_section(section):
+    def parse_subreddits(info, section):
         tokens = map(lambda x: x.strip(),
                      config.get(section, 'subreddits').split(','))
 
-        subreddits = []
-        for token in tokens:
-            subreddit = _parse_subreddit_token(token)
-            subreddits.append(subreddit)
-
+        subreddits = [_parse_subreddit_token(t) for t in tokens]
         if subreddits:
-            desktop_info[desktop]['subreddits'] = subreddits
+            info['subreddits'] = subreddits
 
+    def parse_min_resolution(info, section):
         try:
             min_resolution = config.get(section, 'min_resolution')
         except ConfigParser.NoOptionError:
             pass
         else:
-            desktop_info[desktop]['min_resolution'] = min_resolution
+            info['min_resolution'] = min_resolution
 
-    sections = config.sections()
+    def parse_section(info, section):
+        if not info.get('subreddits'):
+            parse_subreddits(info, section)
 
-    desktops = _get_desktop_range()
+        if not info.get('min_resolution'):
+            parse_min_resolution(info, section)
 
-    for desktop in desktops:
+    config = ConfigParser.ConfigParser()
+    with open(path) as f:
+        config.readfp(f)
+
+    for desktop in _get_desktop_range():
         section = 'desktop{0}'.format(desktop)
-        if section in sections:
-            set_configs_for_section(section)
-        elif 'default' in sections:
-            set_configs_for_section('default')
+
+        if section not in config.sections():
+            section = 'default'
+
+        parse_section(desktop_info[desktop], section)
 
 
 def _handle_cli_options(desktop_info):
@@ -281,25 +283,27 @@ def _handle_cli_options(desktop_info):
 
 
 def _use_defaults(desktop_info):
-    desktops = _get_desktop_range()
-    for desktop in desktops:
-        # Seasonal seems like a pretty good default
-        subreddit = _parse_subreddit_token('{seasonal}')
-        desktop_info[desktop]['subreddits'] = [subreddit]
+    for desktop in _get_desktop_range():
+        info = desktop_info[desktop]
 
-        desktop_info[desktop]['min_resolution'] = '1024x768'
+        if not info.get('subreddits'):
+            # Seasonal seems like a pretty good default
+            subreddit = _parse_subreddit_token('{seasonal}')
+            info['subreddits'] = [subreddit]
+
+        if not info.get('min_resolution'):
+            info['min_resolution'] = DEFAULT_MIN_RESOLUTION
 
 
 def main():
     desktop_info = collections.defaultdict(dict)
 
+    # Configuration override chain:
+    #   CLI options overrides config file
+    #   config file overrides defaults
     _handle_cli_options(desktop_info)
-
-    if not desktop_info:
-        _read_config_file(desktop_info)
-
-    if not desktop_info:
-        _use_defaults(desktop_info)
+    _read_config_file(desktop_info)
+    _use_defaults(desktop_info)
 
     _clear_download_directory()
 
