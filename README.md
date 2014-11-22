@@ -1,21 +1,22 @@
 reddit-background
 =================
 
-Set your Mac OS X desktop background to images pulled from Reddit
+Set your Mac OS X desktop background to images pulled from [Reddit](https://reddit.com)
 
 Features
 --------
 
--   Supports multiple monitors
--   Allows you to pull images from multiple subreddits
--   Can pull images that match the current season
--   Powerful sorting lets you choose the quality of images it downloads
--   Filtering based on image resolution ensures your desktop backgrounds are always beautfully rendered
+- Supports multiple monitors
+- Handles multiple subreddits
+- Image resolution filtering ensures your backgrounds are always beautiful
+- Flexible sorting lets you choose the quality of images it downloads
+- Can pick images that match the current season
 
 Try It
 ------
 
-1.  Clone the repo:
+1.  Download the project; or clone the repo using [git](http://git-scm.com/),
+    like:
 
         git clone https://github.com/rconradharris/reddit-backgrounds.git
 
@@ -24,21 +25,24 @@ Try It
         cd reddit-background
         ./reddit-background
 
-The default is to use images based on the current season (`{seasonal}`), so for example, if it’s November, the images will be pulled from *r/AutumnPorn*.
+The default is to use images based on the current season (`{seasonal}`), so
+for example, if it’s November, the images will be pulled from
+    [r/AutumnPorn](https://reddit.com/r/AutumnPorn).
 
 Install It
 ----------
 
-The easiest way to install reddit-background is to copy it to `/usr/local/bin`. To do this run this command:
+The easiest way to install reddit-background is to copy it to
+`/usr/local/bin`. To do this, run this command:
 
     cp reddit-background /usr/local/bin
 
 Configure It
 ------------
 
-reddit-background lets you specify a configuration file so that you can customize which subreddits it pull images from.
-
-To use a custom configuration, create a file at `~/.reddit-background.conf`. Here’s a sample to get you started:
+If you'd like to customize reddit-background so that it chooses images images
+from different subreddits, you can provide a configuration file at
+`~/.reddit-background.conf`. Here’s a sample to get you started:
 
     # Default is used across all monitors, unless overriden with a more
     # specific configuration
@@ -58,7 +62,8 @@ To use a custom configuration, create a file at `~/.reddit-background.conf`. Her
 Automate It
 -----------
 
-Once you have a configuration you like, you can set up reddit-background to rotate your background daily.
+Once you have a configuration you like, you can set up reddit-background to
+rotate your background daily.
 
 There are a number of ways to do this, but one way is to add it to your *crontab*.
 
@@ -70,14 +75,16 @@ And once you’ve done that, add the following line:
 
     0 9 * * * /usr/local/bin/reddit-background
 
-Save the file and quit the editor. Now your background will rotate daily at 9:00 in the morning.
+Save the file and quit the editor. Now your background will rotate daily at
+9:00 in the morning.
 
 Advanced
 --------
 
 ### Subreddit Sort Options
 
-By default, when you specify a subreddit, you are selecting the top 25 posts over the last week.
+By default, when you specify a subreddit, you are selecting the top 25 posts
+over the last week.
 
 You can customize the sort by using the following format:
 
@@ -90,46 +97,53 @@ You can customize the sort by using the following format:
 | limit     | An integer                                             | 25      |
 | timeframe | all, day, hour, month, week, year                      | week    |
 
-So, for example, if you want to only include the 5 newest posts from *r/EarthPorn*, you would write it as:
+So, for example, if you want to only include the 5 newest posts from
+[r/EarthPorn](https://reddit.com/r/EarthPorn), you would write it as:
 
     EarthPorn:new:5
 
-Or if you’d like to include the top 10 posts over the year for CarPorn, you’d write it as:
+Or if you’d like to include the top 10 posts over the year for
+[r/CarPorn](https://reddit.com/r/CarPorn), you’d write it as:
 
     CarPorn:top:10:year
 
-**NOTE:** Only the ‘top’ and ‘controversial’ sort methods use the `timeframe` option.
+**NOTE:** Only the `top` and `controversial` sort methods use the `timeframe` option.
 
 ### Dynamic Subreddits
 
-reddit-background can dynamically pull images from the correct subreddit based on some criteria.
+reddit-background can dynamically pull images from the correct subreddit based
+on some criteria.
 
-They are specified just like normal subreddits except they are enclosed in curly-brackets.
+These are called 'dynamic subreddits' and they are specified just like normal
+except they are enclosed in curly-brackets.
 
-Currently the only one included is `{seasonal}` which will choose from amongst *r/WinterPorn*, *r/SpringPorn*, *r/SummerPorn*, or *r/AutumnPorn* based on the current season (in the northern hemisphere).
+Currently the only one included is `{seasonal}` which will choose from amongst
+[r/WinterPorn](https://reddit.com/r/WinterPorn),
+[r/SpringPorn](https://reddit.com/r/SpringPorn),
+[r/SummerPorn](https://reddit.com/r/SummerPorn), or
+[r/AutumnPorn](https://reddit.com/r/AutumnPorn) based on the current season
+(in the northern hemisphere).
 
 ### Command-Line Usage
 
-In addition to specifying a configuration file, you can also customize reddit-background directly from the command-line.
+In addition to specifying a configuration file, you can also customize
+reddit-background directly from the command-line.
 
-The arguments represent each subreddit you would like to pull images from. For example, to pull seasonal images and images from *r/CarPorn*, you would run:
+The arguments represent each subreddit you would like to pull images from. For
+example, to pull seasonal images and images from
+[r/CarPorn](https://reddit.com/r/CarPorn), you would run:
 
     reddit-background {seasonal} CarPorn
 
-If you have a multi-monitor setup, you can also set the background for a single monitor using the `--desktop` option like:
+If you have a multi-monitor setup, you can also set the background for a
+single monitor using the `--desktop` option like:
 
     reddit-background --desktop 1 CarPorn:hot:5
 
-This will set the background on desktop 1 to one of the 5 hottest posts from *r/CarPorn*.
+This will set the background on desktop 1 to one of the 5 hottest posts from
+[r/InfrastructurePorn](https://reddit.com/r/InfrastructurePorn).
 
-If you already know the URL of the image you’d like to use, you can use the `--url` to automatically download it and set it the background. For example:
+If you already know the URL of the image you’d like to use, you can use the
+`--url` to automatically download it and set it the background like::
 
     reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
-
-Author
-------
-
--   Rick Harris \<<rconradharris@gmail.com>\>
--   Twitter: [@rconradharris][]
-
-  [@rconradharris]: https://twitter.com/rconradharris
