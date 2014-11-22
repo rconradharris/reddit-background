@@ -20,8 +20,8 @@ Try It
 ======
 
 1. Clone the repo::
-
-   git clone https://github.com/rconradharris/reddit-backgrounds.git
+    
+    git clone https://github.com/rconradharris/reddit-backgrounds.git
 
 2. Run it::
 
@@ -101,9 +101,14 @@ You can customize the sort by using the following format::
 
     <subreddit>:[sort]:[limit]:[timeframe]
 
-``sort`` defaults to 'top'. Available: 'hot', 'new', 'rising', 'controversial', 'top', 'gilded' and 'promoted'
-``limit`` defaults to 25
-``timeframe`` defaults to 'week'. Available: 'hour', 'day', 'week', 'month', 'year', 'all'
+========= ====================================================== =======
+Argument  Possible Values                                        Default
+========= ====================================================== =======
+subreddit A subreddit or {seasonal}                              *None*
+sort      contraversial, gilded, hot, new, promoted, rising, top top
+limit     An integer                                             25
+timeframe all, day, hour, month, week, year                      week
+========= ====================================================== =======
 
 
 So, for example, if you want to only include the 5 newest posts from
@@ -118,7 +123,7 @@ write it as::
     CarPorn:top:10:year
 
 
-Note: Only the 'top' and 'controversial' sort methods use the ``timeframe`` option.
+**NOTE:** Only the 'top' and 'controversial' sort methods use the ``timeframe`` option.
 
 
 Dynamic Subreddits
@@ -130,9 +135,9 @@ on some criteria.
 They are specified just like normal subreddits except they are enclosed in
 curly-brackets.
 
-Currently the only one included is ``{seasonal}`` which will choose from among
-*r/WinterPorn*, *r/SpringPorn*, *r/SummerPorn*, or *r/AutumnPorn* based on the current
-season (in the northern hemisphere).
+Currently the only one included is ``{seasonal}`` which will choose from
+amongst *r/WinterPorn*, *r/SpringPorn*, *r/SummerPorn*, or *r/AutumnPorn*
+based on the current season (in the northern hemisphere).
 
 
 Command-Line Usage
@@ -159,4 +164,4 @@ Author
 ======
 
 * Rick Harris <rconradharris@gmail.com>
-* Twitter: @rconradharris
+* Twitter: `@rconradharris<https://twitter.com/rconradharris>`_
