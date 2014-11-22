@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>reddit-background by rconradharris</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>reddit-background</h1>
+        <h2>Set your Mac OS X desktop background to images pulled from Reddit </h2>
+        <a href="https://github.com/rconradharris/reddit-background" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
+<a id="reddit-background" class="anchor" href="#reddit-background" aria-hidden="true"><span class="octicon octicon-link"></span></a>reddit-background</h1>
+
+<p>Set your Mac OS X desktop background to images pulled from Reddit</p>
+
+<h2>
+<a id="features" class="anchor" href="#features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Features</h2>
+
+<ul>
+<li>  Supports multiple monitors</li>
+<li>  Allows you to pull images from multiple subreddits</li>
+<li>  Can pull images that match the current season</li>
+<li>  Powerful sorting lets you choose the quality of images it downloads</li>
+<li>  Filtering based on image resolution ensures your desktop backgrounds are always beautfully rendered</li>
+</ul>
+
+<h2>
+<a id="try-it" class="anchor" href="#try-it" aria-hidden="true"><span class="octicon octicon-link"></span></a>Try It</h2>
+
+<ol>
+<li>
+<p>Clone the repo:</p>
+
+<pre><code>git clone https://github.com/rconradharris/reddit-backgrounds.git
+</code></pre>
+</li>
+<li>
+<p>Run it:</p>
+
+<pre><code>cd reddit-background
+./reddit-background
+</code></pre>
+</li>
+</ol>
+
+<p>The default is to use images based on the current season (<code>{seasonal}</code>), so for example, if it’s November, the images will be pulled from <em>r/AutumnPorn</em>.</p>
+
+<h2>
+<a id="install-it" class="anchor" href="#install-it" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install It</h2>
+
+<p>The easiest way to install reddit-background is to copy it to <code>/usr/local/bin</code>. To do this run this command:</p>
+
+<pre><code>cp reddit-background /usr/local/bin
+</code></pre>
+
+<h2>
+<a id="configure-it" class="anchor" href="#configure-it" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configure It</h2>
+
+<p>reddit-background lets you specify a configuration file so that you can customize which subreddits it pull images from.</p>
+
+<p>To use a custom configuration, create a file at <code>~/.reddit-background.conf</code>. Here’s a sample to get you started:</p>
+
+<pre><code># Default is used across all monitors, unless overriden with a more
+# specific configuration
+[default]
+
+# {seasonal} will choose the correct subreddit based on the current season
+subreddits={seasonal}
+
+# Filter out any images with resolution below this
+min_resolution=1280x1024
+
+# Desktop 2 overrides the defaults to use images pulled from r/CarPorn and
+# r/EarthPorn
+[desktop2]
+subreddits=CarPorn,EarthPorn
+</code></pre>
+
+<h2>
+<a id="automate-it" class="anchor" href="#automate-it" aria-hidden="true"><span class="octicon octicon-link"></span></a>Automate It</h2>
+
+<p>Once you have a configuration you like, you can set up reddit-background to rotate your background daily.</p>
+
+<p>There are a number of ways to do this, but one way is to add it to your <em>crontab</em>.</p>
+
+<p>To do this, open up your crontab in an editor:</p>
+
+<pre><code>crontab -e
+</code></pre>
+
+<p>And once you’ve done that, add the following line:</p>
+
+<pre><code>0 9 * * * /usr/local/bin/reddit-background
+</code></pre>
+
+<p>Save the file and quit the editor. Now your background will rotate daily at 9:00 in the morning.</p>
+
+<h2>
+<a id="advanced" class="anchor" href="#advanced" aria-hidden="true"><span class="octicon octicon-link"></span></a>Advanced</h2>
+
+<h3>
+<a id="subreddit-sort-options" class="anchor" href="#subreddit-sort-options" aria-hidden="true"><span class="octicon octicon-link"></span></a>Subreddit Sort Options</h3>
+
+<p>By default, when you specify a subreddit, you are selecting the top 25 posts over the last week.</p>
+
+<p>You can customize the sort by using the following format:</p>
+
+<pre><code>&lt;subreddit&gt;:[sort]:[limit]:[timeframe]
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Possible Values</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>subreddit</td>
+<td>A subreddit or {seasonal}</td>
+<td><em>None</em></td>
+</tr>
+<tr>
+<td>sort</td>
+<td>contraversial, gilded, hot, new, promoted, rising, top</td>
+<td>top</td>
+</tr>
+<tr>
+<td>limit</td>
+<td>An integer</td>
+<td>25</td>
+</tr>
+<tr>
+<td>timeframe</td>
+<td>all, day, hour, month, week, year</td>
+<td>week</td>
+</tr>
+</tbody>
+</table>
+
+<p>So, for example, if you want to only include the 5 newest posts from <em>r/EarthPorn</em>, you would write it as:</p>
+
+<pre><code>EarthPorn:new:5
+</code></pre>
+
+<p>Or if you’d like to include the top 10 posts over the year for CarPorn, you’d write it as:</p>
+
+<pre><code>CarPorn:top:10:year
+</code></pre>
+
+<p><strong>NOTE:</strong> Only the ‘top’ and ‘controversial’ sort methods use the <code>timeframe</code> option.</p>
+
+<h3>
+<a id="dynamic-subreddits" class="anchor" href="#dynamic-subreddits" aria-hidden="true"><span class="octicon octicon-link"></span></a>Dynamic Subreddits</h3>
+
+<p>reddit-background can dynamically pull images from the correct subreddit based on some criteria.</p>
+
+<p>They are specified just like normal subreddits except they are enclosed in curly-brackets.</p>
+
+<p>Currently the only one included is <code>{seasonal}</code> which will choose from amongst <em>r/WinterPorn</em>, <em>r/SpringPorn</em>, <em>r/SummerPorn</em>, or <em>r/AutumnPorn</em> based on the current season (in the northern hemisphere).</p>
+
+<h3>
+<a id="command-line-usage" class="anchor" href="#command-line-usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Command-Line Usage</h3>
+
+<p>In addition to specifying a configuration file, you can also customize reddit-background directly from the command-line.</p>
+
+<p>The arguments represent each subreddit you would like to pull images from. For example, to pull seasonal images and images from <em>r/CarPorn</em>, you would run:</p>
+
+<pre><code>reddit-background {seasonal} CarPorn
+</code></pre>
+
+<p>If you have a multi-monitor setup, you can also set the background for a single monitor using the <code>--desktop</code> option like:</p>
+
+<pre><code>reddit-background --desktop 1 CarPorn:hot:5
+</code></pre>
+
+<p>This will set the background on desktop 1 to one of the 5 hottest posts from <em>r/CarPorn</em>.</p>
+
+<p>If you already know the URL of the image you’d like to use, you can use the <code>--url</code> to automatically download it and set it the background. For example:</p>
+
+<pre><code>reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
+</code></pre>
+
+<h2>
+<a id="author" class="anchor" href="#author" aria-hidden="true"><span class="octicon octicon-link"></span></a>Author</h2>
+
+<ul>
+<li>  Rick Harris &lt;<a href="mailto:rconradharris@gmail.com">rconradharris@gmail.com</a>&gt;</li>
+<li>  Twitter: <a href="https://twitter.com/rconradharris">@rconradharris</a>
+</li>
+</ul>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/rconradharris/reddit-background/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/rconradharris/reddit-background/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/rconradharris/reddit-background"></a> is maintained by <a href="https://github.com/rconradharris">rconradharris</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
