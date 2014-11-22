@@ -160,6 +160,12 @@ single monitor using the ``--desktop`` option like::
 This will set the background on desktop 1 to one of the 5 hottest posts from
 *r/CarPorn*.
 
+If you already know the URL of the image you'd like to use, you can use the
+``--url`` to automatically download it and set it the background. For
+example::
+
+    reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
+
 Author
 ======
 

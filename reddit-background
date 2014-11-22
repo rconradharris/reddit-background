@@ -131,6 +131,21 @@ def _get_northern_hemisphere_season():
       return 'winter'
 
 
+def _choose_and_set_background_from_urls(desktop_num, image_urls):
+    random.shuffle(image_urls)
+
+    filename = None
+    for image_url in image_urls:
+        try:
+            filename = _download_image(image_url)
+            break
+        except urllib2.HTTPError:
+            continue  # Try next image...
+
+    if filename:
+        _set_desktop_background(desktop_num, filename)
+
+
 class Desktop(object):
     def __init__(self, num, min_resolution):
         self.num = num
@@ -142,29 +157,14 @@ class Desktop(object):
         self.subreddits.append(subreddit)
 
     def set_background(self):
-        # Accumulate images URL across subreddits
+        # Accumulate images URLs across subreddits
         image_urls = []
         for subreddit in self.subreddits:
             urls = subreddit.fetch_image_urls()
             image_urls.extend(urls)
 
         log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
-
-        # Randomize
-        random.shuffle(image_urls)
-
-        # Pick one
-        filename = None
-        for image_url in image_urls:
-            try:
-                filename = _download_image(image_url)
-                break
-            except urllib2.HTTPError:
-                continue  # Try next image...
-
-        # If we found one, set the background
-        if filename:
-            _set_desktop_background(self.num, filename)
+        _choose_and_set_background_from_urls(self.num, image_urls)
 
 
 class Post(object):
@@ -318,7 +318,7 @@ def _handle_cli_options(desktop_info):
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
             help='A list of subreddits')
-    parser.add_argument('-d', '--desktop', type=int, default=0,
+    parser.add_argument('--desktop', type=int, default=0,
             help='Only set background for this desktop'
                  ' (default: Set all desktops)')
     parser.add_argument('--min-resolution',
@@ -326,6 +326,8 @@ def _handle_cli_options(desktop_info):
                  ' (default: 1024x768)')
     parser.add_argument('--verbose', action='store_true',
             help='Prints addition information to stderr')
+    parser.add_argument('--url',
+            help='Use image from this URL')
 
     args = parser.parse_args()
 
@@ -338,6 +340,9 @@ def _handle_cli_options(desktop_info):
 
     for desktop in desktops:
         info = desktop_info[desktop]
+
+        if args.url:
+            info['url']  = args.url
 
         if args.min_resolution:
             info['min_resolution'] = args.min_resolution
@@ -359,24 +364,28 @@ def _use_defaults(desktop_info):
 
 
 def main():
-    desktop_info = collections.defaultdict(dict)
+    _clear_download_directory()
 
     # Configuration override chain:
     #   CLI options overrides config file
     #   config file overrides defaults
+    desktop_info = collections.defaultdict(dict)
+
     _handle_cli_options(desktop_info)
     _read_config_file(desktop_info)
     _use_defaults(desktop_info)
 
-    _clear_download_directory()
+    for desktop_num, info in desktop_info.iteritems():
+        url = info.get('url')
+        if url:
+            _choose_and_set_background_from_urls(desktop_num, [url])
+        else:
+            desktop = Desktop(desktop_num, info['min_resolution'])
 
-    for num, info in desktop_info.iteritems():
-        desktop = Desktop(num, info['min_resolution'])
+            for t in info['subreddit_tokens']:
+                desktop.add_subreddit_from_token(t)
 
-        for t in info['subreddit_tokens']:
-            desktop.add_subreddit_from_token(t)
-
-        desktop.set_background()
+            desktop.set_background()
 
 
 if __name__ == "__main__":
