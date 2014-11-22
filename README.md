@@ -27,7 +27,7 @@ Try It
 
 The default is to use images based on the current season (`{seasonal}`), so
 for example, if it’s November, the images will be pulled from
-    [r/AutumnPorn](https://reddit.com/r/AutumnPorn).
+    [/r/AutumnPorn](https://reddit.com/r/AutumnPorn).
 
 Install It
 ----------
@@ -98,14 +98,14 @@ You can customize the sort by using the following format:
 | timeframe | all, day, hour, month, week, year                      | week    |
 
 So, for example, if you want to only include the 5 newest posts from
-[r/EarthPorn](https://reddit.com/r/EarthPorn), you would write it as:
+[/r/EarthPorn](https://reddit.com/r/EarthPorn), you would write it as:
 
     EarthPorn:new:5
 
 Or if you’d like to include the top 10 posts over the year for
-[r/CarPorn](https://reddit.com/r/CarPorn), you’d write it as:
+[/r/CityPorn](https://reddit.com/r/CityPorn), you’d write it as:
 
-    CarPorn:top:10:year
+    CityPorn:top:10:year
 
 **NOTE:** Only the `top` and `controversial` sort methods use the `timeframe` option.
 
@@ -118,10 +118,10 @@ These are called 'dynamic subreddits' and they are specified just like normal
 except they are enclosed in curly-brackets.
 
 Currently the only one included is `{seasonal}` which will choose from amongst
-[r/WinterPorn](https://reddit.com/r/WinterPorn),
-[r/SpringPorn](https://reddit.com/r/SpringPorn),
-[r/SummerPorn](https://reddit.com/r/SummerPorn), or
-[r/AutumnPorn](https://reddit.com/r/AutumnPorn) based on the current season
+[/r/WinterPorn](https://reddit.com/r/WinterPorn),
+[/r/SpringPorn](https://reddit.com/r/SpringPorn),
+[/r/SummerPorn](https://reddit.com/r/SummerPorn), or
+[/r/AutumnPorn](https://reddit.com/r/AutumnPorn) based on the current season
 (in the northern hemisphere).
 
 ### Command-Line Usage
@@ -131,19 +131,19 @@ reddit-background directly from the command-line.
 
 The arguments represent each subreddit you would like to pull images from. For
 example, to pull seasonal images and images from
-[r/CarPorn](https://reddit.com/r/CarPorn), you would run:
+[/r/CarPorn](https://reddit.com/r/CarPorn), you would run:
 
     reddit-background {seasonal} CarPorn
 
 If you have a multi-monitor setup, you can also set the background for a
 single monitor using the `--desktop` option like:
 
-    reddit-background --desktop 1 CarPorn:hot:5
+    reddit-background --desktop 1 BeachPorn
 
 This will set the background on desktop 1 to one of the 5 hottest posts from
-[r/InfrastructurePorn](https://reddit.com/r/InfrastructurePorn).
+[/r/BeachPorn](https://reddit.com/r/BeachPorn).
 
 If you already know the URL of the image you’d like to use, you can use the
-`--url` to automatically download it and set it the background like::
+`--url` option to automatically download it and set it the background like::
 
     reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
