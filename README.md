@@ -1,7 +1,7 @@
 reddit-background
 =================
 
-Sets your Mac OS X desktop background to images pulled from Reddit.
+Set your Mac OS X desktop background to images pulled from Reddit
 
 Features
 --------
