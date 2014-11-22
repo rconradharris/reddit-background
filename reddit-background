@@ -76,22 +76,10 @@ def _download(url, filename):
 
 def _download_image(image_url):
     dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
-    basename = "%s.jpg" % uuid.uuid4()
+    basename = "{0}.jpg".format(uuid.uuid4())
     filename = os.path.join(dirname, basename)
     _download(image_url, filename)
     return filename
-
-
-def _select_and_download_image_for_desktop(image_urls):
-    image_urls = image_urls[:]
-
-    random.shuffle(image_urls)
-
-    for image_url in image_urls:
-        try:
-            return _download_image(image_url)
-        except urllib2.HTTPError:
-            pass  # Try next image...
 
 
 def _clear_download_directory():
@@ -117,8 +105,43 @@ def _get_northern_hemisphere_season():
       return 'winter'
 
 
+class Desktop(object):
+    def __init__(self, num, min_resolution):
+        self.num = num
+        self.min_resolution = min_resolution
+        self.subreddits = []
+
+    def add_subreddit_from_token(self, token):
+        subreddit = Subreddit.create_from_token(self, token)
+        self.subreddits.append(subreddit)
+
+    def set_background(self):
+        # Accumulate images URL across subreddits
+        image_urls = []
+        for subreddit in self.subreddits:
+            urls = subreddit.fetch_image_urls()
+            image_urls.extend(urls)
+
+        # Randomize
+        random.shuffle(image_urls)
+
+        # Pick one
+        filename = None
+        for image_url in image_urls:
+            try:
+                filename = _download_image(image_url)
+                break
+            except urllib2.HTTPError:
+                continue  # Try next image...
+
+        # If we found one, set the background
+        if filename:
+            _set_desktop_background(self.num, filename)
+
+
 class Subreddit(object):
-    def __init__(self, name, sort='top', limit=25, timeframe='week'):
+    def __init__(self, desktop, name, sort='top', limit=25, timeframe='week'):
+        self.desktop = desktop
         self.name = name
         self.sort = sort
         self.limit = limit
@@ -155,7 +178,9 @@ class Subreddit(object):
         return resolution_x >= min_x and resolution_y >= min_y
 
     @classmethod
-    def _get_image_urls_from_data(cls, data, min_resolution=None):
+    def _get_image_urls_from_data(cls, data):
+        min_resolution = self.desktop.min_resolution
+
         image_urls = []
         for child in data['data']['children']:
             title = child['data']['title']
@@ -174,33 +199,28 @@ class Subreddit(object):
 
         return image_urls
 
-    def fetch_image_urls(self, min_resolution=None):
+    def fetch_image_urls(self):
         data = self._fetch_subreddit_data(
                 self.name, self.sort, self.limit, self.timeframe)
-        return self._get_image_urls_from_data(
-                data, min_resolution=min_resolution)
+        return self._get_image_urls_from_data(data)
 
     @classmethod
-    def create_from_token_parts(cls, token_parts):
+    def create_from_token(cls, desktop, token):
+        token_parts = token.split(':')
+
+        name = token_parts[0]
+
+        if name == '{seasonal}':
+            token_parts[0] = '%sporn' % _get_northern_hemisphere_season()
+
         args = ('name', 'sort', 'limit', 'timeframe')
         ddict = {}
         for arg, value in zip(args, token_parts):
             ddict[arg] = value
-        return cls(**ddict)
+        return cls(desktop, **ddict)
 
     def __repr__(self):
         return '<Subreddit r/{0}>'.format(self.name)
-
-
-def _parse_subreddit_token(token):
-    token_parts = token.split(':')
-
-    name = token_parts[0]
-
-    if name == '{seasonal}':
-        token_parts[0] = '%sporn' % _get_northern_hemisphere_season()
-
-    return Subreddit.create_from_token_parts(token_parts)
 
 
 def _get_desktop_range():
@@ -214,13 +234,12 @@ def _read_config_file(desktop_info):
     if not os.path.exists(path):
         return
 
-    def parse_subreddits(info, section):
+    def parse_subreddit_tokens(info, section):
         tokens = map(lambda x: x.strip(),
                      config.get(section, 'subreddits').split(','))
 
-        subreddits = [_parse_subreddit_token(t) for t in tokens]
-        if subreddits:
-            info['subreddits'] = subreddits
+        if tokens:
+            info['subreddit_tokens'] = tokens
 
     def parse_min_resolution(info, section):
         try:
@@ -231,8 +250,8 @@ def _read_config_file(desktop_info):
             info['min_resolution'] = min_resolution
 
     def parse_section(info, section):
-        if not info.get('subreddits'):
-            parse_subreddits(info, section)
+        if not info.get('subreddit_tokens'):
+            parse_subreddit_tokens(info, section)
 
         if not info.get('min_resolution'):
             parse_min_resolution(info, section)
@@ -270,26 +289,22 @@ def _handle_cli_options(desktop_info):
         desktops = _get_desktop_range()
 
     for desktop in desktops:
+        info = desktop_info[desktop]
+
         if args.min_resolution:
-            desktop_info[desktop]['min_resolution'] = args.min_resolution
+            info['min_resolution'] = args.min_resolution
 
-        subreddits = []
-        for token in args.subreddits:
-            subreddit = _parse_subreddit_token(token)
-            subreddits.append(subreddit)
-
-        if subreddits:
-            desktop_info[desktop]['subreddits'] = subreddits
+        if args.subreddits:
+            info['subreddit_tokens'] = args.subreddits
 
 
 def _use_defaults(desktop_info):
     for desktop in _get_desktop_range():
         info = desktop_info[desktop]
 
-        if not info.get('subreddits'):
+        if not info.get('subreddit_tokens'):
             # Seasonal seems like a pretty good default
-            subreddit = _parse_subreddit_token('{seasonal}')
-            info['subreddits'] = [subreddit]
+            info['subreddit_tokens'] = ['{seasonal}']
 
         if not info.get('min_resolution'):
             info['min_resolution'] = DEFAULT_MIN_RESOLUTION
@@ -307,21 +322,13 @@ def main():
 
     _clear_download_directory()
 
-    for desktop, info in desktop_info.iteritems():
-        # Accumulate images URL across subreddits
-        image_urls = []
-        for subreddit in info['subreddits']:
-            subreddit_urls = subreddit.fetch_image_urls(
-                    min_resolution=info['min_resolution'])
+    for num, info in desktop_info.iteritems():
+        desktop = Desktop(num, info['min_resolution'])
 
-            image_urls.extend(subreddit_urls)
+        for t in info['subreddit_tokens']:
+            desktop.add_subreddit_from_token(t)
 
-        # Pick one
-        filename = _select_and_download_image_for_desktop(image_urls)
-
-        # If we found one, set the background
-        if filename:
-            _set_desktop_background(desktop, filename)
+        desktop.set_background()
 
 
 if __name__ == "__main__":
