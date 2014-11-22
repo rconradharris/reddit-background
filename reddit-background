@@ -139,35 +139,21 @@ class Desktop(object):
             _set_desktop_background(self.num, filename)
 
 
-class Subreddit(object):
-    def __init__(self, desktop, name, sort='top', limit=25, timeframe='week'):
-        self.desktop = desktop
-        self.name = name
-        self.sort = sort
-        self.limit = limit
-        self.timeframe = timeframe
+class Post(object):
+    def __init__(self, subreddit, title, url):
+        self.subreddit = subreddit
+        self.title = title
+        self.url = url
 
-    @staticmethod
-    def _fetch_subreddit_data(subreddit, sort, limit, timeframe):
-        url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
-        url = url.format(subreddit=subreddit,
-                         sort=sort,
-                         timeframe=timeframe,
-                         limit=limit)
-        response = _urlopen(url)
-        try:
-            return json.loads(response.read())
-        finally:
-            response.close()
+    def meets_resolution_criteria(self):
+        min_resolution = self.subreddit.desktop.min_resolution
 
-    @staticmethod
-    def _meets_resolution_criteria(title, min_resolution):
         if not min_resolution:
             return True
 
         min_x, min_y = map(int, min_resolution.split('x'))
 
-        match = RE_RESOLUTION_IN_TITLE.match(title)
+        match = RE_RESOLUTION_IN_TITLE.match(self.title)
 
         if not match:
             return False
@@ -177,32 +163,58 @@ class Subreddit(object):
 
         return resolution_x >= min_x and resolution_y >= min_y
 
-    @classmethod
-    def _get_image_urls_from_data(cls, data):
-        min_resolution = self.desktop.min_resolution
+    def fetch_image_url(self):
+        url = self.url
 
-        image_urls = []
+        if url.endswith('.jpg'):
+            return url
+        elif 'imgur.com' in url:
+            return '{0}.jpg'.format(url)
+        else:
+            return None
+
+
+class Subreddit(object):
+    def __init__(self, desktop, name, sort='top', limit=25, timeframe='week'):
+        self.desktop = desktop
+        self.name = name
+        self.sort = sort
+        self.limit = limit
+        self.timeframe = timeframe
+
+    def _fetch_posts(self):
+        url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
+        url = url.format(subreddit=self.name,
+                         sort=self.sort,
+                         timeframe=self.timeframe,
+                         limit=self.limit)
+
+        response = _urlopen(url)
+
+        try:
+            data = json.loads(response.read())
+        finally:
+            response.close()
+
+        posts = []
         for child in data['data']['children']:
-            title = child['data']['title']
-            url = child['data']['url']
+            data = child['data']
+            post = Post(self, data['title'], data['url'])
+            posts.append(post)
 
-            if 'imgur.com' in url and not url.endswith('.jpg'):
-                url += '.jpg'
-
-            if not url.endswith('.jpg'):
-                continue
-
-            if not cls._meets_resolution_criteria(title, min_resolution):
-                continue
-
-            image_urls.append(url)
-
-        return image_urls
+        return posts
 
     def fetch_image_urls(self):
-        data = self._fetch_subreddit_data(
-                self.name, self.sort, self.limit, self.timeframe)
-        return self._get_image_urls_from_data(data)
+        posts = self._fetch_posts()
+
+        image_urls = []
+        for post in posts:
+            if post.meets_resolution_criteria():
+                image_url = post.fetch_image_url()
+                if image_url:
+                    image_urls.append(image_url)
+
+        return image_urls
 
     @classmethod
     def create_from_token(cls, desktop, token):
