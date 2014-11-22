@@ -8,7 +8,7 @@ Sets your Mac OS X desktop background to images pulled from Reddit.
 Features
 ========
 
-* Supports multiple desktops
+* Supports multiple monitors
 * Allows you to pull images from multiple subreddits
 * Can pull images that match the current season
 * Powerful sorting lets you choose the quality of images it downloads

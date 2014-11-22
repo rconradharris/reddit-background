@@ -42,12 +42,25 @@ RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 DEFAULT_MIN_RESOLUTION = '1024x768'
 IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
+VERBOSE = False
+
+
+def set_verbose(verbose):
+    global VERBOSE
+    VERBOSE = verbose
+
+
+def log(msg):
+    if VERBOSE:
+        print >> sys.stderr, msg
+
 
 def _run_apple_script(script):
     return subprocess.check_output(['osascript', '-e', script])
 
 
 def _set_desktop_background(idx, filename):
+    log('Setting background for desktop {0}'.format(idx))
     script = 'tell application "System Events" to set picture of item'\
              ' {idx} of (a reference to every desktop) to "{filename}"'\
              .format(idx=idx, filename=filename)
@@ -84,6 +97,7 @@ def _download_image(image_url):
     basename = '.'.join([str(uuid.uuid4()), ext])
     filename = os.path.join(dirname, basename)
 
+    log('Downloading {0} to {1}'.format(image_url, filename))
     response = _urlopen(image_url)
     try:
         with open(filename, 'w') as f:
@@ -133,6 +147,8 @@ class Desktop(object):
         for subreddit in self.subreddits:
             urls = subreddit.fetch_image_urls()
             image_urls.extend(urls)
+
+        log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
 
         # Randomize
         random.shuffle(image_urls)
@@ -228,6 +244,8 @@ class Subreddit(object):
                 if image_url:
                     image_urls.append(image_url)
 
+        log('Found {0} candidate images from {1}'.format(len(image_urls),
+                                                         self.name))
         return image_urls
 
     @classmethod
@@ -299,15 +317,19 @@ def _handle_cli_options(desktop_info):
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
-                       help='A list of subreddits')
-    parser.add_argument('--desktop', type=int, default=0,
+            help='A list of subreddits')
+    parser.add_argument('-d', '--desktop', type=int, default=0,
             help='Only set background for this desktop'
                  ' (default: Set all desktops)')
     parser.add_argument('--min-resolution',
-            help='Minimum resolution of selected image'
+            help='Minimum resolution allowed for image'
                  ' (default: 1024x768)')
+    parser.add_argument('--verbose', action='store_true',
+            help='Prints addition information to stderr')
 
     args = parser.parse_args()
+
+    set_verbose(args.verbose)
 
     if args.desktop:
         desktops = [args.desktop]
