@@ -32,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import urllib2
+import urlparse
 import uuid
 
 
@@ -65,20 +66,22 @@ def _urlopen(url):
     return opener.open(url)
     
 
-def _download(url, filename):
-    response = _urlopen(url)
+def _download_image(image_url):
+    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+
+    url_path = urlparse.urlparse(image_url).path
+    ext = url_path.rsplit('.', 1)[1]
+
+    basename = '.'.join([str(uuid.uuid4()), ext])
+    filename = os.path.join(dirname, basename)
+
+    response = _urlopen(image_url)
     try:
         with open(filename, 'w') as f:
             f.write(response.read())
     finally:
         response.close()
 
-
-def _download_image(image_url):
-    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
-    basename = "{0}.jpg".format(uuid.uuid4())
-    filename = os.path.join(dirname, basename)
-    _download(image_url, filename)
     return filename
 
 
