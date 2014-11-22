@@ -3,6 +3,8 @@ reddit-background
 
 Set your Mac OS X desktop background to images pulled from [Reddit](https://reddit.com)
 
+![Screenshot](https://raw.githubusercontent.com/rconradharris/reddit-background/master/screenshot.jpg)
+
 Features
 --------
 
