@@ -40,6 +40,7 @@ CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 DEFAULT_MIN_RESOLUTION = '1024x768'
+IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 
 def _run_apple_script(script):
@@ -64,13 +65,21 @@ def _urlopen(url):
     opener = urllib2.build_opener()
     opener.addheaders = [('User-Agent', user_agent)]
     return opener.open(url)
-    
+
+
+def _get_extension_from_url(url):
+    url_path = urlparse.urlparse(url).path
+    parts = url_path.rsplit('.', 1)
+    try:
+        return parts[1]
+    except IndexError:
+        return None
 
 def _download_image(image_url):
     dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
 
-    url_path = urlparse.urlparse(image_url).path
-    ext = url_path.rsplit('.', 1)[1]
+    ext = _get_extension_from_url(image_url)
+    assert ext, "No extension found for image!"
 
     basename = '.'.join([str(uuid.uuid4()), ext])
     filename = os.path.join(dirname, basename)
@@ -169,7 +178,9 @@ class Post(object):
     def fetch_image_url(self):
         url = self.url
 
-        if url.endswith('.jpg'):
+        ext = _get_extension_from_url(url)
+
+        if ext in IMAGE_EXTENSIONS:
             return url
         elif 'imgur.com' in url:
             return '{0}.jpg'.format(url)
