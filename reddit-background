@@ -327,7 +327,7 @@ def _handle_cli_options(desktop_info):
                  ' (default: Set all desktops)')
     parser.add_argument('--min-resolution',
             help='Minimum resolution allowed for image'
-                 ' (default: 1024x768)')
+                 ' (default: screen resolution used)')
     parser.add_argument('--verbose', action='store_true',
             help='Prints addition information to stderr')
     parser.add_argument('--url',
