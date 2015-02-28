@@ -39,7 +39,7 @@ import uuid
 CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
-DEFAULT_MIN_RESOLUTION = '1024x768'
+RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 VERBOSE = False
@@ -67,14 +67,43 @@ def _set_desktop_background(idx, filename):
     return _run_apple_script(script)
 
 
-def _get_number_of_desktops():
-    script = 'tell application "System Events" to return count of a'\
-             ' reference to every desktop'
-    return int(_run_apple_script(script).strip())
-    
+class Desktop(object):
+    # desktop = Desktop(desktop_num, info['min_resolution'])
+
+    # for t in info['subreddit_tokens']:
+    #     desktop.add_subreddit_from_token(t)
+
+    # desktop.set_background()
+    def __init__(self, num, min_resolution):
+        self.num = num
+        self.min_resolution = min_resolution
+        self.subreddits = []
+
+    def add_subreddit_from_token(self, token):
+        subreddit = Subreddit.create_from_token(self, token)
+        self.subreddits.append(subreddit)
+
+    def set_background(self):
+        # Accumulate images URLs across subreddits
+        image_urls = []
+        for subreddit in self.subreddits:
+            urls = subreddit.fetch_image_urls()
+            image_urls.extend(urls)
+
+        log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
+        _choose_and_set_background_from_urls(self.num, image_urls)
+
+
+def _get_desktops():
+    p = subprocess.Popen(["system_profiler", "SPDisplaysDataType"], stdout=subprocess.PIPE)
+    (output, err) = p.communicate()
+
+    matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
+    return [Desktop(num, "%sx%s" % (res[0], res[1],)) for num, res in enumerate(matches, start=1)]
+
 
 def _urlopen(url):
-    user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" 
+    user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
     opener = urllib2.build_opener()
     opener.addheaders = [('User-Agent', user_agent)]
     return opener.open(url)
@@ -87,6 +116,7 @@ def _get_extension_from_url(url):
         return parts[1]
     except IndexError:
         return None
+
 
 def _download_image(image_url):
     dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
@@ -122,13 +152,13 @@ def _get_northern_hemisphere_season():
     summer = range(172, 264)
     autumn = range(264, 355)
     if day in spring:
-      return 'spring'
+        return 'spring'
     elif day in summer:
-      return 'summer'
+        return 'summer'
     elif day in autumn:
-      return 'autumn'
+        return 'autumn'
     else:
-      return 'winter'
+        return 'winter'
 
 
 def _choose_and_set_background_from_urls(desktop_num, image_urls):
@@ -144,27 +174,6 @@ def _choose_and_set_background_from_urls(desktop_num, image_urls):
 
     if filename:
         _set_desktop_background(desktop_num, filename)
-
-
-class Desktop(object):
-    def __init__(self, num, min_resolution):
-        self.num = num
-        self.min_resolution = min_resolution
-        self.subreddits = []
-
-    def add_subreddit_from_token(self, token):
-        subreddit = Subreddit.create_from_token(self, token)
-        self.subreddits.append(subreddit)
-
-    def set_background(self):
-        # Accumulate images URLs across subreddits
-        image_urls = []
-        for subreddit in self.subreddits:
-            urls = subreddit.fetch_image_urls()
-            image_urls.extend(urls)
-
-        log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
-        _choose_and_set_background_from_urls(self.num, image_urls)
 
 
 class Post(object):
@@ -267,11 +276,6 @@ class Subreddit(object):
         return '<Subreddit r/{0}>'.format(self.name)
 
 
-def _get_desktop_range():
-    num_desktops = _get_number_of_desktops()
-    return map(lambda x: x + 1, range(num_desktops))
-
-
 def _read_config_file(desktop_info):
     path = os.path.expanduser(CONFIG_PATH)
 
@@ -304,13 +308,13 @@ def _read_config_file(desktop_info):
     with open(path) as f:
         config.readfp(f)
 
-    for desktop in _get_desktop_range():
-        section = 'desktop{0}'.format(desktop)
+    for num in range(1, len(_get_desktops()) + 1):
+        section = 'desktop{0}'.format(num)
 
         if section not in config.sections():
             section = 'default'
 
-        parse_section(desktop_info[desktop], section)
+        parse_section(desktop_info[num], section)
 
 
 def _handle_cli_options(desktop_info):
@@ -336,13 +340,13 @@ def _handle_cli_options(desktop_info):
     if args.desktop:
         desktops = [args.desktop]
     else:
-        desktops = _get_desktop_range()
+        desktops = range(1, len(_get_desktops()) + 1)
 
-    for desktop in desktops:
-        info = desktop_info[desktop]
+    for num in desktops:
+        info = desktop_info[num]
 
         if args.url:
-            info['url']  = args.url
+            info['url'] = args.url
 
         if args.min_resolution:
             info['min_resolution'] = args.min_resolution
@@ -352,15 +356,15 @@ def _handle_cli_options(desktop_info):
 
 
 def _use_defaults(desktop_info):
-    for desktop in _get_desktop_range():
-        info = desktop_info[desktop]
+    for num, desktop in enumerate(_get_desktops(), start=1):
+        info = desktop_info[num]
 
         if not info.get('subreddit_tokens'):
             # Seasonal seems like a pretty good default
             info['subreddit_tokens'] = ['{seasonal}']
 
         if not info.get('min_resolution'):
-            info['min_resolution'] = DEFAULT_MIN_RESOLUTION
+            info['min_resolution'] = desktop.min_resolution
 
 
 def main():
