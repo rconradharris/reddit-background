@@ -29,6 +29,7 @@ import os
 import random
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import urllib2
@@ -43,6 +44,10 @@ RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 VERBOSE = False
+
+
+class URLOpenError(Exception):
+    pass
 
 
 def set_verbose(verbose):
@@ -87,8 +92,13 @@ class Desktop(object):
         # Accumulate images URLs across subreddits
         image_urls = []
         for subreddit in self.subreddits:
-            urls = subreddit.fetch_image_urls()
-            image_urls.extend(urls)
+            try:
+                urls = subreddit.fetch_image_urls()
+            except URLOpenError:
+                log("Error fetching URLS from subreddit '{0}',"
+                    " skipping...".format(subreddit.name))
+            else:
+                image_urls.extend(urls)
 
         log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
         _choose_and_set_background_from_urls(self.num, image_urls)
@@ -106,7 +116,12 @@ def _urlopen(url):
     user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
     opener = urllib2.build_opener()
     opener.addheaders = [('User-Agent', user_agent)]
-    return opener.open(url)
+    try:
+        return opener.open(url)
+    except (socket.error,
+            urllib2.HTTPError,
+            urllib2.URLError):
+        raise URLOpenError
 
 
 def _get_extension_from_url(url):
@@ -169,7 +184,7 @@ def _choose_and_set_background_from_urls(desktop_num, image_urls):
         try:
             filename = _download_image(image_url)
             break
-        except urllib2.HTTPError:
+        except URLOpenError:
             continue  # Try next image...
 
     if filename:
