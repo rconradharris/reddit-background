@@ -73,6 +73,12 @@ def _set_desktop_background(idx, filename):
     return _run_apple_script(script)
 
 
+def _parse_min_resolution(min_resolution):
+    if not min_resolution:
+        return None
+    return map(int, min_resolution.split('x'))
+
+
 class Desktop(object):
     def __init__(self, num, min_resolution=None, subreddit_tokens=None,
                  image_urls=None):
@@ -99,6 +105,7 @@ class Desktop(object):
             return image_urls
 
     def set_background(self):
+        log("Min resolution: {}".format('x'.join(self.min_resolution)))
         if self.image_urls:
             image_urls = self.image_urls
         else:
@@ -131,9 +138,8 @@ def _get_desktops_with_defaults():
     matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
     desktops = []
     for num, res in enumerate(matches, start=1):
-        min_resolution = 'x'.join([res[0], res[1]])
         desktop = Desktop(num,
-                          min_resolution=min_resolution,
+                          min_resolution=(res[0], res[1]),
                           subreddit_tokens=DEFAULT_SUBREDDIT_TOKENS)
         desktops.append(desktop)
     return desktops
@@ -209,23 +215,13 @@ class Post(object):
         self.title = title
         self.url = url
 
-    def meets_resolution_criteria(self):
-        min_resolution = self.subreddit.desktop.min_resolution
-
-        if not min_resolution:
-            return True
-
-        min_x, min_y = map(int, min_resolution.split('x'))
-
+    def get_image_resolution(self):
         match = RE_RESOLUTION_IN_TITLE.match(self.title)
-
         if not match:
-            return False
-
+            return (None, None)
         resolution_x = int(match.group(1))
         resolution_y = int(match.group(2))
-
-        return resolution_x >= min_x and resolution_y >= min_y
+        return resolution_x, resolution_y
 
     def fetch_image_url(self):
         url = self.url
@@ -271,14 +267,25 @@ class Subreddit(object):
         return posts
 
     def fetch_image_urls(self):
+        min_x, min_y = self.desktop.min_resolution
         posts = self._fetch_posts()
-
         image_urls = []
         for post in posts:
-            if post.meets_resolution_criteria():
-                image_url = post.fetch_image_url()
-                if image_url:
+            image_url = post.fetch_image_url()
+            if not image_url:
+                continue
+
+            # Check minimum resolution criteria
+            res_x, res_y = post.get_image_resolution()
+            if res_x is not None and res_y is not None:
+                if res_x >= min_x and res_y >= min_y:
                     image_urls.append(image_url)
+                else:
+                    log("Rejecting {} with resolution {}x{}".format(
+                        image_url, res_x, res_y))
+            else:
+                log("Rejecting {} with no resolution information".format(
+                    image_url))
 
         log('Found {0} candidate images from {1}'.format(len(image_urls),
                                                          self.name))
@@ -321,7 +328,9 @@ def _read_config_file(desktops):
         except ConfigParser.NoOptionError:
             pass
         else:
-            desktop.min_resolution = min_resolution
+            min_resolution = _parse_min_resolution(min_resolution)
+            if min_resolution:
+                desktop.min_resolution = min_resolution
 
     config = ConfigParser.ConfigParser()
     with open(path) as f:
@@ -362,7 +371,9 @@ def _handle_cli_options(desktops):
         if args.url:
             desktop.image_urls = [args.url]
         if args.min_resolution:
-            desktop.min_resolution = min_resolution
+            min_resolution = _parse_min_resolution(args.min_resolution)
+            if min_resolution:
+                desktop.min_resolution = min_resolution
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
 
