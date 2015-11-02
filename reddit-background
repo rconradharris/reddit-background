@@ -37,6 +37,7 @@ import urlparse
 import uuid
 
 
+DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 CONFIG_PATH = "~/.reddit-background.conf"
 DOWNLOAD_DIRECTORY = "~/.background-images"
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
@@ -73,25 +74,21 @@ def _set_desktop_background(idx, filename):
 
 
 class Desktop(object):
-    # desktop = Desktop(desktop_num, info['min_resolution'])
-
-    # for t in info['subreddit_tokens']:
-    #     desktop.add_subreddit_from_token(t)
-
-    # desktop.set_background()
-    def __init__(self, num, min_resolution):
+    def __init__(self, num, min_resolution=None, subreddit_tokens=None,
+                 image_urls=None):
         self.num = num
         self.min_resolution = min_resolution
-        self.subreddits = []
+        self.subreddit_tokens = subreddit_tokens or []
+        self.image_urls = image_urls or []
 
-    def add_subreddit_from_token(self, token):
-        subreddit = Subreddit.create_from_token(self, token)
-        self.subreddits.append(subreddit)
+    def _get_subreddits(self):
+        return [Subreddit.create_from_token(self, t)
+                for t in self.subreddit_tokens]
 
-    def set_background(self):
+    def _get_image_urls_from_subreddits(self):
         # Accumulate images URLs across subreddits
         image_urls = []
-        for subreddit in self.subreddits:
+        for subreddit in self._get_subreddits():
             try:
                 urls = subreddit.fetch_image_urls()
             except URLOpenError:
@@ -99,17 +96,47 @@ class Desktop(object):
                     " skipping...".format(subreddit.name))
             else:
                 image_urls.extend(urls)
+            return image_urls
 
-        log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
-        _choose_and_set_background_from_urls(self.num, image_urls)
+    def set_background(self):
+        if self.image_urls:
+            image_urls = self.image_urls
+        else:
+            image_urls = self._get_image_urls_from_subreddits()
+            log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
+
+        random.shuffle(image_urls)
+
+        filename = None
+        for image_url in image_urls:
+            try:
+                filename = _download_image(image_url)
+                break
+            except URLOpenError:
+                continue  # Try next image...
+
+        if filename:
+            _set_desktop_background(self.num, filename)
 
 
-def _get_desktops():
-    p = subprocess.Popen(["system_profiler", "SPDisplaysDataType"], stdout=subprocess.PIPE)
+def _get_desktops_with_defaults():
+    """Desktop objects populated with sensible defaults.
+
+    Customizations will be performed by overriding these values, first using
+    the config file and later command-line options.
+    """
+    p = subprocess.Popen(["system_profiler", "SPDisplaysDataType"],
+                         stdout=subprocess.PIPE)
     (output, err) = p.communicate()
-
     matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
-    return [Desktop(num, "%sx%s" % (res[0], res[1],)) for num, res in enumerate(matches, start=1)]
+    desktops = []
+    for num, res in enumerate(matches, start=1):
+        min_resolution = 'x'.join([res[0], res[1]])
+        desktop = Desktop(num,
+                          min_resolution=min_resolution,
+                          subreddit_tokens=DEFAULT_SUBREDDIT_TOKENS)
+        desktops.append(desktop)
+    return desktops
 
 
 def _urlopen(url):
@@ -174,21 +201,6 @@ def _get_northern_hemisphere_season():
         return 'autumn'
     else:
         return 'winter'
-
-
-def _choose_and_set_background_from_urls(desktop_num, image_urls):
-    random.shuffle(image_urls)
-
-    filename = None
-    for image_url in image_urls:
-        try:
-            filename = _download_image(image_url)
-            break
-        except URLOpenError:
-            continue  # Try next image...
-
-    if filename:
-        _set_desktop_background(desktop_num, filename)
 
 
 class Post(object):
@@ -291,48 +303,39 @@ class Subreddit(object):
         return '<Subreddit r/{0}>'.format(self.name)
 
 
-def _read_config_file(desktop_info):
+def _read_config_file(desktops):
     path = os.path.expanduser(CONFIG_PATH)
 
     if not os.path.exists(path):
         return
 
-    def parse_subreddit_tokens(info, section):
+    def parse_subreddit_tokens(desktop, section):
         tokens = map(lambda x: x.strip(),
                      config.get(section, 'subreddits').split(','))
-
         if tokens:
-            info['subreddit_tokens'] = tokens
+            desktop.subreddit_tokens = tokens
 
-    def parse_min_resolution(info, section):
+    def parse_min_resolution(desktop, section):
         try:
             min_resolution = config.get(section, 'min_resolution')
         except ConfigParser.NoOptionError:
             pass
         else:
-            info['min_resolution'] = min_resolution
-
-    def parse_section(info, section):
-        if not info.get('subreddit_tokens'):
-            parse_subreddit_tokens(info, section)
-
-        if not info.get('min_resolution'):
-            parse_min_resolution(info, section)
+            desktop.min_resolution = min_resolution
 
     config = ConfigParser.ConfigParser()
     with open(path) as f:
         config.readfp(f)
 
-    for num in range(1, len(_get_desktops()) + 1):
-        section = 'desktop{0}'.format(num)
-
+    for desktop in desktops:
+        section = 'desktop{0}'.format(desktop.num)
         if section not in config.sections():
             section = 'default'
+        parse_subreddit_tokens(desktop, section)
+        parse_min_resolution(desktop, section)
 
-        parse_section(desktop_info[num], section)
 
-
-def _handle_cli_options(desktop_info):
+def _handle_cli_options(desktops):
     parser = argparse.ArgumentParser(
         description='Set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
@@ -353,58 +356,26 @@ def _handle_cli_options(desktop_info):
     set_verbose(args.verbose)
 
     if args.desktop:
-        desktops = [args.desktop]
-    else:
-        desktops = range(1, len(_get_desktops()) + 1)
+        desktops = [d for d in desktops if d.num == args.desktop]
 
-    for num in desktops:
-        info = desktop_info[num]
-
+    for desktop in desktops:
         if args.url:
-            info['url'] = args.url
-
+            desktop.image_urls = [args.url]
         if args.min_resolution:
-            info['min_resolution'] = args.min_resolution
-
+            desktop.min_resolution = min_resolution
         if args.subreddits:
-            info['subreddit_tokens'] = args.subreddits
-
-
-def _use_defaults(desktop_info):
-    for num, desktop in enumerate(_get_desktops(), start=1):
-        info = desktop_info[num]
-
-        if not info.get('subreddit_tokens'):
-            # Seasonal seems like a pretty good default
-            info['subreddit_tokens'] = ['{seasonal}']
-
-        if not info.get('min_resolution'):
-            info['min_resolution'] = desktop.min_resolution
-
+            desktop.subreddit_tokens = args.subreddits
 
 def main():
     _clear_download_directory()
 
-    # Configuration override chain:
-    #   CLI options overrides config file
-    #   config file overrides defaults
-    desktop_info = collections.defaultdict(dict)
+    # Configuration override change: defaults -> config-file -> cli-options
+    desktops = _get_desktops_with_defaults()
+    _read_config_file(desktops)
+    _handle_cli_options(desktops)
 
-    _handle_cli_options(desktop_info)
-    _read_config_file(desktop_info)
-    _use_defaults(desktop_info)
-
-    for desktop_num, info in desktop_info.iteritems():
-        url = info.get('url')
-        if url:
-            _choose_and_set_background_from_urls(desktop_num, [url])
-        else:
-            desktop = Desktop(desktop_num, info['min_resolution'])
-
-            for t in info['subreddit_tokens']:
-                desktop.add_subreddit_from_token(t)
-
-            desktop.set_background()
+    for desktop in desktops:
+        desktop.set_background()
 
 
 if __name__ == "__main__":
