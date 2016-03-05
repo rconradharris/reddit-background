@@ -79,6 +79,10 @@ def _parse_min_resolution(min_resolution):
     return map(int, min_resolution.split('x'))
 
 
+def _min_resolution_str(min_resolution):
+    return 'x'.join(map(str, min_resolution))
+
+
 class Desktop(object):
     def __init__(self, num, min_resolution=None, subreddit_tokens=None,
                  image_urls=None):
@@ -105,7 +109,7 @@ class Desktop(object):
             return image_urls
 
     def set_background(self):
-        log("Min resolution: {}".format('x'.join(self.min_resolution)))
+        log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
         if self.image_urls:
             image_urls = self.image_urls
         else:
@@ -139,7 +143,7 @@ def _get_desktops_with_defaults():
     desktops = []
     for num, res in enumerate(matches, start=1):
         desktop = Desktop(num,
-                          min_resolution=(res[0], res[1]),
+                          min_resolution=(int(res[0]), int(res[1])),
                           subreddit_tokens=DEFAULT_SUBREDDIT_TOKENS)
         desktops.append(desktop)
     return desktops
@@ -278,11 +282,14 @@ class Subreddit(object):
             # Check minimum resolution criteria
             res_x, res_y = post.get_image_resolution()
             if res_x is not None and res_y is not None:
+                res_str = _min_resolution_str((res_x, res_y))
                 if res_x >= min_x and res_y >= min_y:
+                    log("Keeping {} with resolution {}".format(
+                        image_url, res_str))
                     image_urls.append(image_url)
                 else:
-                    log("Rejecting {} with resolution {}x{}".format(
-                        image_url, res_x, res_y))
+                    log("Rejecting {} with resolution {}".format(
+                        image_url, res_str))
             else:
                 log("Rejecting {} with no resolution information".format(
                     image_url))
