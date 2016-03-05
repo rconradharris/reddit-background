@@ -132,7 +132,7 @@ def _get_desktops_with_defaults():
     Customizations will be performed by overriding these values, first using
     the config file and later command-line options.
     """
-    p = subprocess.Popen(["system_profiler", "SPDisplaysDataType"],
+    p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
                          stdout=subprocess.PIPE)
     (output, err) = p.communicate()
     matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
