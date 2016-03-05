@@ -387,8 +387,8 @@ def _handle_cli_options(desktops):
     args = parser.parse_args()
 
     set_verbosity(args.verbose)
-    set_download_only(args.download_only)
-
+    if args.download_only:
+        set_download_only(True)
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
 
