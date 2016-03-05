@@ -39,7 +39,6 @@ import uuid
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
-DEFAULT_DOWNLOAD_DIRECTORY = "~/.background-images"
 DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 # Regexs
@@ -49,6 +48,7 @@ RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 # Globals
 VERBOSITY = 0
 DOWNLOAD_ONLY = False
+DOWNLOAD_DIRECTORY = "~/.background-images"
 
 
 class URLOpenError(Exception):
@@ -63,6 +63,11 @@ def set_verbosity(verbosity):
 def set_download_only(download_only):
     global DOWNLOAD_ONLY
     DOWNLOAD_ONLY = download_only
+
+
+def set_download_directory(directory):
+    global DOWNLOAD_DIRECTORY
+    DOWNLOAD_DIRECTORY = directory
 
 
 def log(msg, level=1):
@@ -186,7 +191,7 @@ def _get_extension_from_url(url):
 
 
 def _download_image(image_url):
-    dirname = os.path.expanduser(DEFAULT_DOWNLOAD_DIRECTORY)
+    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
 
     ext = _get_extension_from_url(image_url)
     assert ext, "No extension found for image!"
@@ -206,7 +211,7 @@ def _download_image(image_url):
 
 
 def _clear_download_directory():
-    dirname = os.path.expanduser(DEFAULT_DOWNLOAD_DIRECTORY)
+    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
     if os.path.exists(dirname):
         shutil.rmtree(dirname)
     os.makedirs(dirname)
@@ -366,7 +371,17 @@ def _read_config_file(desktops):
         parse_min_resolution(desktop, section)
 
     if 'default' in config.sections():
-        set_download_only(config.getboolean('default', 'download_only'))
+        try:
+            set_download_only(config.getboolean('default', 'download_only'))
+        except ConfigParser.NoOptionError:
+            pass
+        try:
+            download_directory = config.get('default', 'download_directory')
+        except ConfigParser.NoOptionError:
+            pass
+        else:
+            if download_directory:
+                set_download_directory(download_directory)
 
 
 def _handle_cli_options(desktops):
@@ -386,12 +401,17 @@ def _handle_cli_options(desktops):
             help='Use image from this URL')
     parser.add_argument('--download-only', action='store_true',
             help='Download the files but do not actually set the background')
+    parser.add_argument('--download-directory',
+            help='Directory to use to store images')
 
     args = parser.parse_args()
 
     set_verbosity(args.verbose)
     if args.download_only:
         set_download_only(True)
+    if args.download_directory:
+        set_download_directory(args.download_directory)
+
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
 
@@ -406,12 +426,12 @@ def _handle_cli_options(desktops):
             desktop.subreddit_tokens = args.subreddits
 
 def main():
-    _clear_download_directory()
-
     # Configuration override change: defaults -> config-file -> cli-options
     desktops = _get_desktops_with_defaults()
     _read_config_file(desktops)
     _handle_cli_options(desktops)
+
+    _clear_download_directory()
 
     for desktop in desktops:
         filename = desktop.fetch_background()

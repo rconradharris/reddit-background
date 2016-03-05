@@ -52,6 +52,7 @@ from different subreddits, you can provide a configuration file at
     # specific configuration
     [default]
     download_only = true
+    download_directory = ~/myimages
 
     # {seasonal} will choose the correct subreddit based on the current season
     subreddits={seasonal}
@@ -153,6 +154,8 @@ If you already know the URL of the image you’d like to use, you can use the
 
     reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
 
+### Download Configuration
+
 If you'd like to use OS X's existing folder-based background selector, then you
 can use the ``--download-only`` option which will download the images to
 reddit-backgrounds folder but not actually set the background. You can then
@@ -160,3 +163,7 @@ point the System Preferences/Desktop/Backgrounds folder to that location and
 have it rotate every 30 minutes (or whenever)::
 
     reddit-background --download-only
+
+You can also configure which directory reddit-background will download the
+images into using the ``--download-directory`` option or the
+``download_directory`` config in the ``default`` section of the config file.
