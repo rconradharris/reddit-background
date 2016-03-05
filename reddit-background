@@ -68,7 +68,7 @@ def log(msg, level=1):
 
 
 def _run_apple_script(script):
-    return subprocess.check_output(['osascript', '-e', script])
+    return subprocess.check_output(['/usr/bin/osascript', '-e', script])
 
 
 def _set_desktop_background(idx, filename):
