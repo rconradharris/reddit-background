@@ -36,14 +36,17 @@ import urllib2
 import urlparse
 import uuid
 
-
+# Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
-CONFIG_PATH = "~/.reddit-background.conf"
-DOWNLOAD_DIRECTORY = "~/.background-images"
+DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
+DEFAULT_DOWNLOAD_DIRECTORY = "~/.background-images"
+DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
+
+# Regexs
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
-IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
+# Globals
 VERBOSITY = 0
 DOWNLOAD_ONLY = False
 
@@ -183,7 +186,7 @@ def _get_extension_from_url(url):
 
 
 def _download_image(image_url):
-    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+    dirname = os.path.expanduser(DEFAULT_DOWNLOAD_DIRECTORY)
 
     ext = _get_extension_from_url(image_url)
     assert ext, "No extension found for image!"
@@ -203,7 +206,7 @@ def _download_image(image_url):
 
 
 def _clear_download_directory():
-    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+    dirname = os.path.expanduser(DEFAULT_DOWNLOAD_DIRECTORY)
     if os.path.exists(dirname):
         shutil.rmtree(dirname)
     os.makedirs(dirname)
@@ -244,7 +247,7 @@ class Post(object):
 
         ext = _get_extension_from_url(url)
 
-        if ext in IMAGE_EXTENSIONS:
+        if ext in DEFAULT_IMAGE_EXTENSIONS:
             return url
         elif 'imgur.com' in url:
             return '{0}.jpg'.format(url)
@@ -330,7 +333,7 @@ class Subreddit(object):
 
 
 def _read_config_file(desktops):
-    path = os.path.expanduser(CONFIG_PATH)
+    path = os.path.expanduser(DEFAULT_CONFIG_PATH)
 
     if not os.path.exists(path):
         return
