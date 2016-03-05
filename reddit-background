@@ -48,7 +48,7 @@ RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 # Globals
 VERBOSITY = 0
 DOWNLOAD_ONLY = False
-DOWNLOAD_DIRECTORY = "~/.background-images"
+DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
 
 
 class URLOpenError(Exception):
