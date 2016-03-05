@@ -44,20 +44,26 @@ RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
-VERBOSE = False
+VERBOSITY = 0
 
 
 class URLOpenError(Exception):
     pass
 
 
-def set_verbose(verbose):
-    global VERBOSE
-    VERBOSE = verbose
+def set_verbosity(verbosity):
+    global VERBOSITY
+    VERBOSITY = verbosity
 
 
-def log(msg):
-    if VERBOSE:
+def log(msg, level=1):
+    """Log to stderr
+
+    -v is level 1
+    -vv is level 2
+    etc...
+    """
+    if VERBOSITY >= level:
         print >> sys.stderr, msg
 
 
@@ -285,14 +291,14 @@ class Subreddit(object):
                 res_str = _min_resolution_str((res_x, res_y))
                 if res_x >= min_x and res_y >= min_y:
                     log("Keeping {} with resolution {}".format(
-                        image_url, res_str))
+                        image_url, res_str), level=2)
                     image_urls.append(image_url)
                 else:
                     log("Rejecting {} with resolution {}".format(
-                        image_url, res_str))
+                        image_url, res_str), level=2)
             else:
                 log("Rejecting {} with no resolution information".format(
-                    image_url))
+                    image_url), level=2)
 
         log('Found {0} candidate images from {1}'.format(len(image_urls),
                                                          self.name))
@@ -362,14 +368,14 @@ def _handle_cli_options(desktops):
     parser.add_argument('--min-resolution',
             help='Minimum resolution allowed for image'
                  ' (default: screen resolution used)')
-    parser.add_argument('--verbose', action='store_true',
-            help='Prints addition information to stderr')
+    parser.add_argument('-v', '--verbose', action='count',
+            help='Log to stderr (use -vv for even more info)')
     parser.add_argument('--url',
             help='Use image from this URL')
 
     args = parser.parse_args()
 
-    set_verbose(args.verbose)
+    set_verbosity(args.verbose)
 
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
