@@ -13,6 +13,8 @@ Features
 - Image resolution filtering ensures your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads
 - Can pick images that match the current season
+- Download only option if you want to use OS X's existing folder-based
+  background selector
 
 Try It
 ------
@@ -49,6 +51,7 @@ from different subreddits, you can provide a configuration file at
     # Default is used across all monitors, unless overriden with a more
     # specific configuration
     [default]
+    download_only = true
 
     # {seasonal} will choose the correct subreddit based on the current season
     subreddits={seasonal}
@@ -149,3 +152,11 @@ If you already know the URL of the image you’d like to use, you can use the
 `--url` option to automatically download it and set it the background like::
 
     reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
+
+If you'd like to use OS X's existing folder-based background selector, then you
+can use the ``--download-only`` option which will download the images to
+reddit-backgrounds folder but not actually set the background. You can then
+point the System Preferences/Desktop/Backgrounds folder to that location and
+have it rotate every 30 minutes (or whenever)::
+
+    reddit-background --download-only

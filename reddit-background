@@ -45,6 +45,7 @@ RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 VERBOSITY = 0
+DOWNLOAD_ONLY = False
 
 
 class URLOpenError(Exception):
@@ -54,6 +55,11 @@ class URLOpenError(Exception):
 def set_verbosity(verbosity):
     global VERBOSITY
     VERBOSITY = verbosity
+
+
+def set_download_only(download_only):
+    global DOWNLOAD_ONLY
+    DOWNLOAD_ONLY = download_only
 
 
 def log(msg, level=1):
@@ -114,7 +120,7 @@ class Desktop(object):
                 image_urls.extend(urls)
             return image_urls
 
-    def set_background(self):
+    def fetch_background(self):
         log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
         if self.image_urls:
             image_urls = self.image_urls
@@ -124,16 +130,16 @@ class Desktop(object):
 
         random.shuffle(image_urls)
 
-        filename = None
         for image_url in image_urls:
             try:
-                filename = _download_image(image_url)
-                break
+                return _download_image(image_url)
             except URLOpenError:
                 continue  # Try next image...
 
-        if filename:
-            _set_desktop_background(self.num, filename)
+        return None
+
+    def set_background(self, filename):
+        _set_desktop_background(self.num, filename)
 
 
 def _get_desktops_with_defaults():
@@ -356,6 +362,9 @@ def _read_config_file(desktops):
         parse_subreddit_tokens(desktop, section)
         parse_min_resolution(desktop, section)
 
+    if 'default' in config.sections():
+        set_download_only(config.getboolean('default', 'download_only'))
+
 
 def _handle_cli_options(desktops):
     parser = argparse.ArgumentParser(
@@ -372,10 +381,13 @@ def _handle_cli_options(desktops):
             help='Log to stderr (use -vv for even more info)')
     parser.add_argument('--url',
             help='Use image from this URL')
+    parser.add_argument('--download-only', action='store_true',
+            help='Download the files but do not actually set the background')
 
     args = parser.parse_args()
 
     set_verbosity(args.verbose)
+    set_download_only(args.download_only)
 
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
@@ -399,7 +411,12 @@ def main():
     _handle_cli_options(desktops)
 
     for desktop in desktops:
-        desktop.set_background()
+        filename = desktop.fetch_background()
+        if filename:
+            if DOWNLOAD_ONLY:
+                log("Skipping setting background")
+            else:
+                desktop.set_background(filename)
 
 
 if __name__ == "__main__":
