@@ -357,10 +357,14 @@ def _read_config_file(desktops):
         return
 
     def parse_subreddit_tokens(desktop, section):
-        tokens = map(lambda x: x.strip(),
-                     config.get(section, 'subreddits').split(','))
-        if tokens:
-            desktop.subreddit_tokens = tokens
+        try:
+            tokens = map(lambda x: x.strip(),
+                         config.get(section, 'subreddits').split(','))
+        except ConfigParser.NoOptionError:
+            pass
+        else:
+            if tokens:
+                desktop.subreddit_tokens = tokens
 
     def parse_min_resolution(desktop, section):
         try:
