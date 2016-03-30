@@ -48,6 +48,7 @@ RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
 # Globals
 VERBOSITY = 0
 DOWNLOAD_ONLY = False
+NUMBER_OF_IMAGES = 1
 DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
 
 
@@ -63,6 +64,10 @@ def set_verbosity(verbosity):
 def set_download_only(download_only):
     global DOWNLOAD_ONLY
     DOWNLOAD_ONLY = download_only
+
+def set_number_of_images(number_of_images):
+    global NUMBER_OF_IMAGES
+    NUMBER_OF_IMAGES = number_of_images
 
 
 def set_download_directory(directory):
@@ -112,14 +117,17 @@ class Desktop(object):
         self.image_urls = image_urls or []
 
     def _get_subreddits(self):
-        return [Subreddit.create_from_token(self, t)
-                for t in self.subreddit_tokens]
+        subreddits = [Subreddit.create_from_token(self, t) for t in self.subreddit_tokens]
+        log("Subreddits: {}".format([s.name for s in subreddits]))
+        return subreddits
+
 
     def _get_image_urls_from_subreddits(self):
         # Accumulate images URLs across subreddits
         image_urls = []
         for subreddit in self._get_subreddits():
             try:
+                log("Get image URLS from subreddit: {}".format(subreddit))
                 urls = subreddit.fetch_image_urls()
             except URLOpenError:
                 log("Error fetching URLS from subreddit '{0}',"
@@ -139,10 +147,14 @@ class Desktop(object):
 
         random.shuffle(image_urls)
 
-        for image_url in image_urls:
+        log('Number of images to download: {0}'.format(NUMBER_OF_IMAGES))
+        number_downloaded = 0
+        while (number_downloaded < NUMBER_OF_IMAGES):
             try:
-                return _download_image(image_url)
+                _download_image(image_urls[number_downloaded])
+                number_downloaded += 1
             except URLOpenError:
+                number_downloaded += 1
                 continue  # Try next image...
 
         return None
@@ -377,6 +389,10 @@ def _read_config_file(desktops):
         except ConfigParser.NoOptionError:
             pass
         try:
+            set_number_of_images(config.getint('default', 'number_of_images'))
+        except ConfigParser.NoOptionError:
+            pass
+        try:
             download_directory = config.get('default', 'download_directory')
         except ConfigParser.NoOptionError:
             pass
@@ -402,6 +418,9 @@ def _handle_cli_options(desktops):
             help='Use image from this URL')
     parser.add_argument('--download-only', action='store_true',
             help='Download the files but do not actually set the background')
+    parser.add_argument('--number-of-images', type=int, default=1,
+            help='Total number of images to download, only active if --download-only is set'
+                ' (default: 1)')
     parser.add_argument('--download-directory',
             help='Directory to use to store images')
 
@@ -410,6 +429,10 @@ def _handle_cli_options(desktops):
     set_verbosity(args.verbose)
     if args.download_only:
         set_download_only(True)
+
+    if args.download_only and args.number_of_images:
+        set_number_of_images(args.number_of_images)
+
     if args.download_directory:
         set_download_directory(args.download_directory)
 
