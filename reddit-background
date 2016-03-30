@@ -36,6 +36,8 @@ import urllib2
 import urlparse
 import uuid
 
+__version__ = '0.1beta'
+
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
@@ -416,26 +418,29 @@ def _read_config_file(desktops):
 
 def _handle_cli_options(desktops):
     parser = argparse.ArgumentParser(
-        description='Set desktop background image from reddit')
+        description='set desktop background image from reddit')
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
-            help='A list of subreddits')
+            help='a list of subreddits')
     parser.add_argument('--desktop', type=int, default=0,
-            help='Only set background for this desktop'
+            help='only set background for this desktop'
                  ' (default: Set all desktops)')
     parser.add_argument('--min-resolution',
-            help='Minimum resolution allowed for image'
+            help='minimum resolution allowed for image'
                  ' (default: screen resolution used)')
     parser.add_argument('-v', '--verbose', action='count',
-            help='Log to stderr (use -vv for even more info)')
+            help='log to stderr (use -vv for even more info)')
     parser.add_argument('--url',
-            help='Use image from this URL')
+            help='use image from this URL')
     parser.add_argument('--download-only', action='store_true',
-            help='Download the files but do not actually set the background')
+            help='download the files but do not actually set the background')
     parser.add_argument('--number-of-images', type=int,
-            help='Total number of images to download, only active if'
+            help='total number of images to download, only active if'
                  ' --download-only is set (default: 1)')
     parser.add_argument('--download-directory',
-            help='Directory to use to store images')
+            help='directory to use to store images')
+    parser.add_argument('--version',
+                        action='version',
+                        version=__version__)
 
     args = parser.parse_args()
 
