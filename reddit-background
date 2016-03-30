@@ -22,7 +22,6 @@ AUTHOR
 """
 import ConfigParser
 import argparse
-import collections
 import datetime
 import json
 import os
@@ -50,9 +49,8 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 
 # Globals
 _VERBOSITY = 0
-_DOWNLOAD_ONLY = False
-_NUMBER_OF_IMAGES = 1
 _DOWNLOAD_DIRECTORY = None
+_IMAGE_COUNT = 0
 
 
 def set_verbosity(verbosity):
@@ -64,24 +62,6 @@ def get_verbosity():
     return _VERBOSITY
 
 
-def set_download_only(download_only):
-    global _DOWNLOAD_ONLY
-    _DOWNLOAD_ONLY = download_only
-
-
-def get_download_only():
-    return _DOWNLOAD_ONLY
-
-
-def set_number_of_images(number_of_images):
-    global _NUMBER_OF_IMAGES
-    _NUMBER_OF_IMAGES = number_of_images
-
-
-def get_number_of_images():
-    return _NUMBER_OF_IMAGES
-
-
 def set_download_directory(directory):
     global _DOWNLOAD_DIRECTORY
     _DOWNLOAD_DIRECTORY = directory
@@ -90,6 +70,15 @@ def set_download_directory(directory):
 def get_download_directory():
     dirname = _DOWNLOAD_DIRECTORY or DEFAULT_DOWNLOAD_DIRECTORY
     return os.path.expanduser(dirname)
+
+
+def set_image_count(image_count):
+    global _IMAGE_COUNT
+    _IMAGE_COUNT = image_count
+
+
+def get_image_count():
+    return _IMAGE_COUNT
 
 
 def _safe_makedirs(name, mode=0777):
@@ -176,11 +165,25 @@ class Desktop(object):
 
         random.shuffle(image_urls)
 
-        num_images = get_number_of_images()
-        log('Number of images to download: {0}'.format(num_images))
+        image_count = get_image_count()
+        if image_count <= 0:
+            # image_count<=0 is set-background-mode.
+            #
+            # In set-background-mode, we download a single image per-desktop
+            # and set that as the background.
+            #
+            # The opposite of set-background-mode is download-only-mode, when
+            # image_count>0.
+            #
+            # In download-only-mode, we download the number of images
+            # requested and DO NOT set the background (user configures OS X
+            # to set background from folder)
+            image_count = 1
+
+        log('Number of images to download: {0}'.format(image_count))
         filenames = []
         while True:
-            if len(filenames) >= num_images:
+            if len(filenames) >= image_count:
                 break  # Reached user-specified limit...
             try:
                 image_url = image_urls.pop()
@@ -432,11 +435,7 @@ def _read_config_file(desktops):
 
     if 'default' in config.sections():
         try:
-            set_download_only(config.getboolean('default', 'download_only'))
-        except ConfigParser.NoOptionError:
-            pass
-        try:
-            set_number_of_images(config.getint('default', 'number_of_images'))
+            set_image_count(config.getint('default', 'image_count'))
         except ConfigParser.NoOptionError:
             pass
         try:
@@ -463,11 +462,9 @@ def _handle_cli_options(desktops):
             help='log to stderr (use -vv for even more info)')
     parser.add_argument('--url',
             help='use image from this URL')
-    parser.add_argument('--download-only', action='store_true',
-            help='download the files but do not actually set the background')
-    parser.add_argument('--number-of-images', type=int,
-            help='total number of images to download, only active if'
-                 ' --download-only is set (default: 1)')
+    parser.add_argument('--image-count', type=int,
+            help="number of images to download (this only downloads the"
+                 " images, it doesn't set the background)")
     parser.add_argument('--download-directory',
             help='directory to use to store images')
     parser.add_argument('--version',
@@ -477,11 +474,9 @@ def _handle_cli_options(desktops):
     args = parser.parse_args()
 
     set_verbosity(args.verbose)
-    if args.download_only:
-        set_download_only(True)
 
-    if args.number_of_images is not None:
-        set_number_of_images(args.number_of_images)
+    if args.image_count is not None:
+        set_image_count(args.image_count)
 
     if args.download_directory:
         set_download_directory(args.download_directory)
@@ -501,7 +496,7 @@ def _handle_cli_options(desktops):
 
 
 def main():
-    # Configuration override change: defaults -> config-file -> cli-options
+    # Configuration override order: defaults -> config-file -> cli-options
     desktops = _get_desktops_with_defaults()
     _read_config_file(desktops)
     _handle_cli_options(desktops)
@@ -510,7 +505,7 @@ def main():
 
     for desktop in desktops:
         filenames = desktop.fetch_backgrounds()
-        if _DOWNLOAD_ONLY:
+        if get_image_count():
             log("Skipping setting background")
         else:
             if filenames:

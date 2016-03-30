@@ -1,0 +1,7 @@
+* Only use the standard-library, no dependencies (e.g. requests!)
+* Successful runs should print nothing to stdout or stderr unless verbose is
+  enabled
+* Changes should be added to the CHANGELOG with of the following annotations:
+  BUG, FEATURE, BREAKING CHANGE
+* Options should be specifiable via the command-line, a configuration file,
+  and if neither is supplied, have a sensible default
