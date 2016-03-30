@@ -1,2 +1,3 @@
 0.1beta
     * FEATURE: Added --version option
+    * BREAKING CHANGE: Images are downloaded to a per-desktop directory

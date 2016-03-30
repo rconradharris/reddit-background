@@ -51,7 +51,7 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 VERBOSITY = 0
 DOWNLOAD_ONLY = False
 NUMBER_OF_IMAGES = 1
-DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
+_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
 
 
 class URLOpenError(Exception):
@@ -73,8 +73,17 @@ def set_number_of_images(number_of_images):
 
 
 def set_download_directory(directory):
-    global DOWNLOAD_DIRECTORY
-    DOWNLOAD_DIRECTORY = directory
+    global _DOWNLOAD_DIRECTORY
+    _DOWNLOAD_DIRECTORY = directory
+
+
+def get_download_directory():
+    return os.path.expanduser(_DOWNLOAD_DIRECTORY)
+
+
+def _safe_makedirs(name, mode=0777):
+    if not os.path.exists(name):
+        os.makedirs(name, mode=mode)
 
 
 def warn(msg):
@@ -140,6 +149,12 @@ class Desktop(object):
 
         return image_urls
 
+    @property
+    def download_directory(self):
+        """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
+        subdir = 'Desktop {}'.format(self.num)
+        return os.path.join(get_download_directory(), subdir)
+
     def fetch_backgrounds(self):
         log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
         if self.image_urls:
@@ -162,7 +177,7 @@ class Desktop(object):
                      ' limit')
                 break
             try:
-                filename = _download_image(image_url)
+                filename = _download_image(image_url, self.download_directory)
             except URLOpenError:
                 continue  # Try next image...
             else:
@@ -214,16 +229,17 @@ def _get_extension_from_url(url):
         return None
 
 
-def _download_image(image_url):
-    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
-
+def _download_image(image_url, dirname):
+    """Download an image to a particular directory"""
     ext = _get_extension_from_url(image_url)
     assert ext, "No extension found for image!"
+
+    _safe_makedirs(dirname)
 
     basename = '.'.join([str(uuid.uuid4()), ext])
     filename = os.path.join(dirname, basename)
 
-    log('Downloading {0} to {1}'.format(image_url, filename))
+    log("Downloading '{0}' to '{1}'".format(image_url, filename))
     response = _urlopen(image_url)
     try:
         with open(filename, 'w') as f:
@@ -235,10 +251,10 @@ def _download_image(image_url):
 
 
 def _clear_download_directory():
-    dirname = os.path.expanduser(DOWNLOAD_DIRECTORY)
+    dirname = get_download_directory()
     if os.path.exists(dirname):
         shutil.rmtree(dirname)
-    os.makedirs(dirname)
+    _safe_makedirs(dirname)
 
 
 def _get_northern_hemisphere_season():
