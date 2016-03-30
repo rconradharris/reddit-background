@@ -43,7 +43,7 @@ DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 
 # Regexs
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
-RE_RESOLUTION_DISPLAYS = "Resolution: (\d+)\sx\s(\d+)"
+RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 
 # Globals
 VERBOSITY = 0
@@ -73,6 +73,11 @@ def set_number_of_images(number_of_images):
 def set_download_directory(directory):
     global DOWNLOAD_DIRECTORY
     DOWNLOAD_DIRECTORY = directory
+
+
+def warn(msg):
+    """Print a warning to stderr"""
+    print >> sys.stderr, "warning: {}".format(msg)
 
 
 def log(msg, level=1):
@@ -116,28 +121,24 @@ class Desktop(object):
         self.subreddit_tokens = subreddit_tokens or []
         self.image_urls = image_urls or []
 
-    def _get_subreddits(self):
-        subreddits = [Subreddit.create_from_token(self, t) for t in self.subreddit_tokens]
-        log("Subreddits: {}".format([s.name for s in subreddits]))
-        return subreddits
-
-
     def _get_image_urls_from_subreddits(self):
-        # Accumulate images URLs across subreddits
+        subreddits = [Subreddit.create_from_token(self, t)
+                      for t in self.subreddit_tokens]
+        log("Subreddits: {}".format([s.name for s in subreddits]))
         image_urls = []
-        for subreddit in self._get_subreddits():
+        for subreddit in subreddits:
+            log("Get image URLS from subreddit: {}".format(subreddit))
             try:
-                log("Get image URLS from subreddit: {}".format(subreddit))
                 urls = subreddit.fetch_image_urls()
             except URLOpenError:
-                log("Error fetching URLS from subreddit '{0}',"
-                    " skipping...".format(subreddit.name))
+                warn("error fetching URLS from subreddit '{0}',"
+                     " skipping...".format(subreddit.name))
             else:
                 image_urls.extend(urls)
 
         return image_urls
 
-    def fetch_background(self):
+    def fetch_backgrounds(self):
         log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
         if self.image_urls:
             image_urls = self.image_urls
@@ -148,16 +149,24 @@ class Desktop(object):
         random.shuffle(image_urls)
 
         log('Number of images to download: {0}'.format(NUMBER_OF_IMAGES))
-        number_downloaded = 0
-        while (number_downloaded < NUMBER_OF_IMAGES):
+        filenames = []
+        while True:
+            if len(filenames) >= NUMBER_OF_IMAGES:
+                break  # Reached user-specified limit...
             try:
-                _download_image(image_urls[number_downloaded])
-                number_downloaded += 1
+                image_url = image_urls.pop()
+            except IndexError:
+                warn('ran out of images before reaching number_of_images'
+                     ' limit')
+                break
+            try:
+                filename = _download_image(image_url)
             except URLOpenError:
-                number_downloaded += 1
                 continue  # Try next image...
+            else:
+                filenames.append(filename)
 
-        return None
+        return filenames
 
     def set_background(self, filename):
         _set_desktop_background(self.num, filename)
@@ -422,9 +431,9 @@ def _handle_cli_options(desktops):
             help='Use image from this URL')
     parser.add_argument('--download-only', action='store_true',
             help='Download the files but do not actually set the background')
-    parser.add_argument('--number-of-images', type=int, default=1,
-            help='Total number of images to download, only active if --download-only is set'
-                ' (default: 1)')
+    parser.add_argument('--number-of-images', type=int,
+            help='Total number of images to download, only active if'
+                 ' --download-only is set (default: 1)')
     parser.add_argument('--download-directory',
             help='Directory to use to store images')
 
@@ -434,7 +443,7 @@ def _handle_cli_options(desktops):
     if args.download_only:
         set_download_only(True)
 
-    if args.download_only and args.number_of_images:
+    if args.number_of_images is not None:
         set_number_of_images(args.number_of_images)
 
     if args.download_directory:
@@ -453,6 +462,7 @@ def _handle_cli_options(desktops):
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
 
+
 def main():
     # Configuration override change: defaults -> config-file -> cli-options
     desktops = _get_desktops_with_defaults()
@@ -462,12 +472,12 @@ def main():
     _clear_download_directory()
 
     for desktop in desktops:
-        filename = desktop.fetch_background()
-        if filename:
-            if DOWNLOAD_ONLY:
-                log("Skipping setting background")
-            else:
-                desktop.set_background(filename)
+        filenames = desktop.fetch_backgrounds()
+        if DOWNLOAD_ONLY:
+            log("Skipping setting background")
+        else:
+            if filenames:
+                desktop.set_background(filenames[0])
 
 
 if __name__ == "__main__":
