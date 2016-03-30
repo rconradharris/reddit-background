@@ -42,34 +42,44 @@ __version__ = '0.1beta'
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
 DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
+DEFAULT_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
 
 # Regexs
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 
 # Globals
-VERBOSITY = 0
-DOWNLOAD_ONLY = False
-NUMBER_OF_IMAGES = 1
-_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
-
-
-class URLOpenError(Exception):
-    pass
+_VERBOSITY = 0
+_DOWNLOAD_ONLY = False
+_NUMBER_OF_IMAGES = 1
+_DOWNLOAD_DIRECTORY = None
 
 
 def set_verbosity(verbosity):
-    global VERBOSITY
-    VERBOSITY = verbosity
+    global _VERBOSITY
+    _VERBOSITY = verbosity
+
+
+def get_verbosity():
+    return _VERBOSITY
 
 
 def set_download_only(download_only):
-    global DOWNLOAD_ONLY
-    DOWNLOAD_ONLY = download_only
+    global _DOWNLOAD_ONLY
+    _DOWNLOAD_ONLY = download_only
+
+
+def get_download_only():
+    return _DOWNLOAD_ONLY
+
 
 def set_number_of_images(number_of_images):
-    global NUMBER_OF_IMAGES
-    NUMBER_OF_IMAGES = number_of_images
+    global _NUMBER_OF_IMAGES
+    _NUMBER_OF_IMAGES = number_of_images
+
+
+def get_number_of_images():
+    return _NUMBER_OF_IMAGES
 
 
 def set_download_directory(directory):
@@ -78,7 +88,8 @@ def set_download_directory(directory):
 
 
 def get_download_directory():
-    return os.path.expanduser(_DOWNLOAD_DIRECTORY)
+    dirname = _DOWNLOAD_DIRECTORY or DEFAULT_DOWNLOAD_DIRECTORY
+    return os.path.expanduser(dirname)
 
 
 def _safe_makedirs(name, mode=0777):
@@ -98,7 +109,7 @@ def log(msg, level=1):
     -vv is level 2
     etc...
     """
-    if VERBOSITY >= level:
+    if get_verbosity() >= level:
         print >> sys.stderr, msg
 
 
@@ -165,10 +176,11 @@ class Desktop(object):
 
         random.shuffle(image_urls)
 
-        log('Number of images to download: {0}'.format(NUMBER_OF_IMAGES))
+        num_images = get_number_of_images()
+        log('Number of images to download: {0}'.format(num_images))
         filenames = []
         while True:
-            if len(filenames) >= NUMBER_OF_IMAGES:
+            if len(filenames) >= num_images:
                 break  # Reached user-specified limit...
             try:
                 image_url = image_urls.pop()
@@ -206,6 +218,10 @@ def _get_desktops_with_defaults():
                           subreddit_tokens=DEFAULT_SUBREDDIT_TOKENS)
         desktops.append(desktop)
     return desktops
+
+
+class URLOpenError(Exception):
+    pass
 
 
 def _urlopen(url):
@@ -494,7 +510,7 @@ def main():
 
     for desktop in desktops:
         filenames = desktop.fetch_backgrounds()
-        if DOWNLOAD_ONLY:
+        if _DOWNLOAD_ONLY:
             log("Skipping setting background")
         else:
             if filenames:
