@@ -126,7 +126,8 @@ class Desktop(object):
                     " skipping...".format(subreddit.name))
             else:
                 image_urls.extend(urls)
-            return image_urls
+
+        return image_urls
 
     def fetch_background(self):
         log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
