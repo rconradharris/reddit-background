@@ -47,7 +47,8 @@ Configure It
 If you'd like to customize reddit-background so that it chooses images images
 from different subreddits, you can provide a configuration file at
 `~/.reddit-background.conf`. Samples configuration files are provided in the
-[examples](https://github.com/rconradharris/reddit-background/blob/master/reddit-background/examples) directory.
+[examples](https://github.com/rconradharris/reddit-background/tree/master/examples)
+directory.
 
 Automate It
 -----------
@@ -147,7 +148,7 @@ In addition, you can use OS X's native folder-based background selector which
 offers additional features.
 
 To use OS X's background selector, you tell `reddit-background` to download a
-set number of images using the `--image-coun` option. This will download these
+set number of images using the `--image-count` option. This will download these
 images into the download directory but not actually set them as the
 background. You then set `System Preferences -> Desktop -> Backgrounds` to
 point to the download directory for each desktop.
