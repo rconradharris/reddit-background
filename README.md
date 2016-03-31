@@ -13,8 +13,8 @@ Features
 - Image resolution filtering ensures your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads
 - Can pick images that match the current season
-- Download only option if you want to use OS X's existing folder-based
-  background selector
+- Download only option (`--image-count`) if you want to use OS X's existing
+  folder-based background selector
 
 Try It
 ------
@@ -46,24 +46,8 @@ Configure It
 
 If you'd like to customize reddit-background so that it chooses images images
 from different subreddits, you can provide a configuration file at
-`~/.reddit-background.conf`. Here’s a sample to get you started:
-
-    # Default is used across all monitors, unless overriden with a more
-    # specific configuration
-    [default]
-    download_only = true
-    download_directory = ~/myimages
-
-    # {seasonal} will choose the correct subreddit based on the current season
-    subreddits={seasonal}
-
-    # Filter out any images with resolution below this
-    min_resolution=1280x1024
-
-    # Desktop 2 overrides the defaults to use images pulled from r/CarPorn and
-    # r/EarthPorn
-    [desktop2]
-    subreddits=CarPorn,EarthPorn
+`~/.reddit-background.conf`. Samples configuration files are provided in the
+[examples](https://github.com/rconradharris/reddit-background/blob/master/reddit-background/examples) directory.
 
 Automate It
 -----------
@@ -156,14 +140,14 @@ If you already know the URL of the image you’d like to use, you can use the
 
 ### Download Configuration
 
-If you'd like to use OS X's existing folder-based background selector, then you
-can use the ``--download-only`` option which will download the images to
-reddit-backgrounds folder but not actually set the background. You can then
-point the System Preferences/Desktop/Backgrounds folder to that location and
-have it rotate every 30 minutes (or whenever)::
+By default reddit-background will download a single image per desktop and set
+that to your desktop's background.
 
-    reddit-background --download-only
+In addition, you can use OS X's native folder-based background selector which
+offers additional features.
 
-You can also configure which directory reddit-background will download the
-images into using the ``--download-directory`` option or the
-``download_directory`` config in the ``default`` section of the config file.
+To use OS X's background selector, you tell `reddit-background` to download a
+set number of images using the `--image-coun` option. This will download these
+images into the download directory but not actually set them as the
+background. You then set `System Preferences -> Desktop -> Backgrounds` to
+point to the download directory for each desktop.

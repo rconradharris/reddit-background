@@ -453,8 +453,8 @@ def _handle_cli_options(desktops):
     parser.add_argument('subreddits', metavar='SUBREDDITS', nargs='*',
             help='a list of subreddits')
     parser.add_argument('--desktop', type=int, default=0,
-            help='only set background for this desktop'
-                 ' (default: Set all desktops)')
+            help='set background for this desktop'
+                 ' (default: sets background for all desktops)')
     parser.add_argument('--min-resolution',
             help='minimum resolution allowed for image'
                  ' (default: screen resolution used)')
