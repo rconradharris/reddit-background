@@ -42,6 +42,7 @@ DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
 DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 DEFAULT_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
+DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
 
 # Regexs
 RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
@@ -100,18 +101,6 @@ def log(msg, level=1):
     """
     if get_verbosity() >= level:
         print >> sys.stderr, msg
-
-
-def _run_apple_script(script):
-    return subprocess.check_output(['/usr/bin/osascript', '-e', script])
-
-
-def _set_desktop_background(idx, filename):
-    log('Setting background for desktop {0}'.format(idx))
-    script = 'tell application "System Events" to set picture of item'\
-             ' {idx} of (a reference to every desktop) to "{filename}"'\
-             .format(idx=idx, filename=filename)
-    return _run_apple_script(script)
 
 
 def _parse_min_resolution(min_resolution):
@@ -192,7 +181,8 @@ class Desktop(object):
                      ' limit')
                 break
             try:
-                filename = _download_image(image_url, self.download_directory)
+                filename = _download_to_directory(
+                        image_url, self.download_directory)
             except URLOpenError:
                 continue  # Try next image...
             else:
@@ -201,7 +191,11 @@ class Desktop(object):
         return filenames
 
     def set_background(self, filename):
-        _set_desktop_background(self.num, filename)
+        log('Setting background for desktop {0}'.format(self.num))
+        script = 'tell application "System Events" to set picture of item'\
+                 ' {num} of (a reference to every desktop) to "{filename}"'\
+                 .format(num=self.num, filename=filename)
+        return subprocess.check_output(['/usr/bin/osascript', '-e', script])
 
 
 def _get_desktops_with_defaults():
@@ -228,9 +222,8 @@ class URLOpenError(Exception):
 
 
 def _urlopen(url):
-    user_agent = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
     opener = urllib2.build_opener()
-    opener.addheaders = [('User-Agent', user_agent)]
+    opener.addheaders = [('User-Agent', DEFAULT_USER_AGENT)]
     try:
         return opener.open(url)
     except (socket.error,
@@ -248,18 +241,15 @@ def _get_extension_from_url(url):
         return None
 
 
-def _download_image(image_url, dirname):
-    """Download an image to a particular directory"""
-    ext = _get_extension_from_url(image_url)
-    assert ext, "No extension found for image!"
-
+def _download_to_directory(url, dirname):
+    """Download a file to a particular directory"""
     _safe_makedirs(dirname)
 
     basename = '.'.join([str(uuid.uuid4()), ext])
     filename = os.path.join(dirname, basename)
 
-    log("Downloading '{0}' to '{1}'".format(image_url, filename))
-    response = _urlopen(image_url)
+    log("Downloading '{0}' to '{1}'".format(url, filename))
+    response = _urlopen(url)
     try:
         with open(filename, 'w') as f:
             f.write(response.read())
