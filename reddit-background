@@ -6,11 +6,11 @@ NAME
 
 SYNOPSIS
 
-    reddit-backgrounds [--desktop <DESKTOP>] [-h --help] [SUBREDDITS]
+    reddit-background [options] [SUBREDDITS]
 
 DESCRIPTION
 
-    Set Mac OS X desktop backgrounds to images from pulled from Reddit.
+    Set Mac OS X desktop backgrounds to images pulled from Reddit.
 
 EXAMPLES
 
