@@ -245,6 +245,7 @@ def _download_to_directory(url, dirname):
     """Download a file to a particular directory"""
     _safe_makedirs(dirname)
 
+    ext = _get_extension_from_url(url)
     basename = '.'.join([str(uuid.uuid4()), ext])
     filename = os.path.join(dirname, basename)
 
@@ -298,9 +299,7 @@ class Post(object):
 
     def fetch_image_url(self):
         url = self.url
-
         ext = _get_extension_from_url(url)
-
         if ext in DEFAULT_IMAGE_EXTENSIONS:
             return url
         elif 'imgur.com' in url:
@@ -368,13 +367,24 @@ class Subreddit(object):
         return image_urls
 
     @classmethod
+    def handle_dynamic_subreddit_seasonal(cls, token_parts):
+        """Dynamic subreddit handlers mutate token_parts in order to trigger
+        dynamic behavior.
+        """
+        season = _get_northern_hemisphere_season().capitalize()
+        token_parts[0] = '{}Porn'.format(season)
+
+    @classmethod
     def create_from_token(cls, desktop, token):
         token_parts = token.split(':')
 
+        # Handle any dynamic subreddits
         name = token_parts[0]
-
-        if name == '{seasonal}':
-            token_parts[0] = '%sporn' % _get_northern_hemisphere_season()
+        if name.startswith('{') and name.endswith('}'):
+            stripped_name = name[1:-1]
+            handler_name = 'handle_dynamic_subreddit_{}'.format(stripped_name)
+            func = getattr(cls, handler_name)
+            func(token_parts)
 
         args = ('name', 'sort', 'limit', 'timeframe')
         ddict = {}
