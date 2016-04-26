@@ -119,22 +119,10 @@ class Desktop(object):
         self.subreddit_tokens = subreddit_tokens or []
         self.image_urls = image_urls or []
 
-    def _get_image_urls_from_subreddits(self):
-        subreddits = [Subreddit.create_from_token(self, t)
-                      for t in self.subreddit_tokens]
-        log("Subreddits: {}".format([s.name for s in subreddits]))
-        image_urls = []
-        for subreddit in subreddits:
-            log("Get image URLS from subreddit: {}".format(subreddit))
-            try:
-                urls = subreddit.fetch_image_urls()
-            except URLOpenError:
-                warn("error fetching URLS from subreddit '{0}',"
-                     " skipping...".format(subreddit.name))
-            else:
-                image_urls.extend(urls)
-
-        return image_urls
+    @property
+    def subreddits(self):
+        return [Subreddit.create_from_token(self, t)
+                for t in self.subreddit_tokens]
 
     @property
     def download_directory(self):
@@ -142,15 +130,34 @@ class Desktop(object):
         subdir = 'Desktop {}'.format(self.num)
         return os.path.join(get_download_directory(), subdir)
 
-    def fetch_backgrounds(self):
-        log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
+    def _choose_image_urls(self):
         if self.image_urls:
-            image_urls = self.image_urls
-        else:
-            image_urls = self._get_image_urls_from_subreddits()
-            log('Total candidate images across subreddits: {0}'.format(len(image_urls)))
+            random.shuffle(self.image_urls)
+            return self.image_urls
 
-        random.shuffle(image_urls)
+        log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
+        min_x, min_y = self.min_resolution
+        image_urls = []
+        for subreddit in self.subreddits:
+            images = subreddit.fetch_images()
+            log('{} images before sorting and filtering'.format(len(images)))
+            _images = []
+            for image in images:
+                res_str = _min_resolution_str((image.width, image.height))
+                if image.width >= min_x and image.height >= min_y:
+                    log("Keeping {} with resolution {}".format(
+                        image.url, res_str), level=2)
+                    _images.append(image)
+                else:
+                    log("Rejecting {} with resolution {}".format(
+                        image.url, res_str), level=2)
+
+        image_urls.extend([i.url for i in _images])
+        return image_urls
+
+    def fetch_backgrounds(self):
+        image_urls = self._choose_image_urls()
+        log('Total candidate images: {0}'.format(len(image_urls)))
 
         image_count = get_image_count()
         if image_count <= 0:
@@ -182,6 +189,7 @@ class Desktop(object):
                 filename = _download_to_directory(
                         image_url, self.download_directory)
             except URLOpenError:
+                warn("unable to download '{}', skipping...".format(image_url))
                 continue  # Try next image...
             else:
                 filenames.append(filename)
@@ -296,14 +304,19 @@ class Subreddit(object):
         self.limit = limit
         self.timeframe = timeframe
 
-    def _fetch_images(self):
+    def fetch_images(self):
         url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
         url = url.format(subreddit=self.name,
                          sort=self.sort,
                          timeframe=self.timeframe,
                          limit=self.limit)
 
-        response = _urlopen(url)
+        try:
+            response = _urlopen(url)
+        except URLOpenError:
+            warn("error fetching images from subreddit '{0}',"
+                 " skipping...".format(self.name))
+            return []
 
         try:
             data = json.loads(response.read())
@@ -321,24 +334,6 @@ class Subreddit(object):
                 images.append(image)
 
         return images
-
-    def fetch_image_urls(self):
-        min_x, min_y = self.desktop.min_resolution
-        images = self._fetch_images()
-        image_urls = []
-        for image in images:
-            res_str = _min_resolution_str((image.width, image.height))
-            if image.width >= min_x and image.height >= min_y:
-                log("Keeping {} with resolution {}".format(
-                    image.url, res_str), level=2)
-                image_urls.append(image.url)
-            else:
-                log("Rejecting {} with resolution {}".format(
-                    image.url, res_str), level=2)
-
-        log('Found {0} candidate images from {1}'.format(len(image_urls),
-                                                         self.name))
-        return image_urls
 
     @classmethod
     def handle_dynamic_subreddit_seasonal(cls, token_parts):
