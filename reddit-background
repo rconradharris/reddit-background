@@ -35,17 +35,15 @@ import urllib2
 import urlparse
 import uuid
 
-__version__ = '0.1beta'
+__version__ = '0.2beta'
 
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
-DEFAULT_IMAGE_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
 DEFAULT_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
 
 # Regexs
-RE_RESOLUTION_IN_TITLE = re.compile(".*\[\s*(\d+)\s*[xX]\s*(\d+)\s*\].*")
 RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 
 # Globals
@@ -283,29 +281,11 @@ def _get_northern_hemisphere_season():
         return 'winter'
 
 
-class Post(object):
-    def __init__(self, subreddit, title, url):
-        self.subreddit = subreddit
-        self.title = title
+class Image(object):
+    def __init__(self, width, height, url):
+        self.width = width
+        self.height = height
         self.url = url
-
-    def get_image_resolution(self):
-        match = RE_RESOLUTION_IN_TITLE.match(self.title)
-        if not match:
-            return (None, None)
-        resolution_x = int(match.group(1))
-        resolution_y = int(match.group(2))
-        return resolution_x, resolution_y
-
-    def fetch_image_url(self):
-        url = self.url
-        ext = _get_extension_from_url(url)
-        if ext in DEFAULT_IMAGE_EXTENSIONS:
-            return url
-        elif 'imgur.com' in url:
-            return '{0}.jpg'.format(url)
-        else:
-            return None
 
 
 class Subreddit(object):
@@ -316,7 +296,7 @@ class Subreddit(object):
         self.limit = limit
         self.timeframe = timeframe
 
-    def _fetch_posts(self):
+    def _fetch_images(self):
         url = 'http://reddit.com/r/{subreddit}/{sort}.json?t={timeframe}&limit={limit}'
         url = url.format(subreddit=self.name,
                          sort=self.sort,
@@ -330,37 +310,31 @@ class Subreddit(object):
         finally:
             response.close()
 
-        posts = []
+        images = []
         for child in data['data']['children']:
-            data = child['data']
-            post = Post(self, data['title'], data['url'])
-            posts.append(post)
+            try:
+                image_data = child['data']['preview']['images'][0]['source']
+            except (KeyError, IndexError):
+                continue
+            else:
+                image = Image(image_data['width'], image_data['height'], image_data['url'])
+                images.append(image)
 
-        return posts
+        return images
 
     def fetch_image_urls(self):
         min_x, min_y = self.desktop.min_resolution
-        posts = self._fetch_posts()
+        images = self._fetch_images()
         image_urls = []
-        for post in posts:
-            image_url = post.fetch_image_url()
-            if not image_url:
-                continue
-
-            # Check minimum resolution criteria
-            res_x, res_y = post.get_image_resolution()
-            if res_x is not None and res_y is not None:
-                res_str = _min_resolution_str((res_x, res_y))
-                if res_x >= min_x and res_y >= min_y:
-                    log("Keeping {} with resolution {}".format(
-                        image_url, res_str), level=2)
-                    image_urls.append(image_url)
-                else:
-                    log("Rejecting {} with resolution {}".format(
-                        image_url, res_str), level=2)
+        for image in images:
+            res_str = _min_resolution_str((image.width, image.height))
+            if image.width >= min_x and image.height >= min_y:
+                log("Keeping {} with resolution {}".format(
+                    image.url, res_str), level=2)
+                image_urls.append(image.url)
             else:
-                log("Rejecting {} with no resolution information".format(
-                    image_url), level=2)
+                log("Rejecting {} with resolution {}".format(
+                    image.url, res_str), level=2)
 
         log('Found {0} candidate images from {1}'.format(len(image_urls),
                                                          self.name))
