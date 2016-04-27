@@ -10,7 +10,7 @@ Features
 
 - Supports multiple monitors
 - Handles multiple subreddits
-- Image resolution filtering ensures your backgrounds are always beautiful
+- Aspect ratio and resolution filtering ensures your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads
 - Can pick images that match the current season
 - Download only option (`--image-count`) if you want to use OS X's existing

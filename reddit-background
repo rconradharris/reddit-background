@@ -24,6 +24,7 @@ import ConfigParser
 import argparse
 import datetime
 import json
+import operator
 import os
 import random
 import re
@@ -35,7 +36,7 @@ import urllib2
 import urlparse
 import uuid
 
-__version__ = '0.2beta'
+__version__ = '2.0beta'
 
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
@@ -50,6 +51,11 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 _VERBOSITY = 0
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
+
+# Consts
+WEIGHT_ASPECT_RATIO = 1.0
+WEIGHT_RESOLUTION = 1.0
+WEIGHT_JITTER = 1.0
 
 
 def set_verbosity(verbosity):
@@ -101,21 +107,12 @@ def log(msg, level=1):
         print >> sys.stderr, msg
 
 
-def _parse_min_resolution(min_resolution):
-    if not min_resolution:
-        return None
-    return map(int, min_resolution.split('x'))
-
-
-def _min_resolution_str(min_resolution):
-    return 'x'.join(map(str, min_resolution))
-
-
 class Desktop(object):
-    def __init__(self, num, min_resolution=None, subreddit_tokens=None,
+    def __init__(self, num, width, height, subreddit_tokens=None,
                  image_urls=None):
         self.num = num
-        self.min_resolution = min_resolution
+        self.width = width
+        self.height = height
         self.subreddit_tokens = subreddit_tokens or []
         self.image_urls = image_urls or []
 
@@ -130,34 +127,117 @@ class Desktop(object):
         subdir = 'Desktop {}'.format(self.num)
         return os.path.join(get_download_directory(), subdir)
 
+    def _score_aspect_ratio(self, image):
+        """Scoring criteria: The closer an image is to the aspect ratio of the
+        desktop the better.
+
+        0 < score <= 1
+        1 is an exact match in terms of aspect ratio.
+        """
+        image_aspect_ratio = float(image.width) / image.height
+        desktop_aspect_ratio = float(self.width) / self.height
+
+        if image_aspect_ratio > desktop_aspect_ratio:
+            score = desktop_aspect_ratio / image_aspect_ratio
+        else:
+            score = image_aspect_ratio / desktop_aspect_ratio
+
+        log("image_aspect_ratio={:.2f} desktop_aspect_ratio={:.2f} score={:.2f}".format(
+            image_aspect_ratio, desktop_aspect_ratio, score), level=3)
+
+        return score
+
+    def _score_resolution(self, image):
+        """Scoring criteria: The higher the resolution an image the better.
+        However, an image with resolution higher than the desktop is not
+        better than any other image with resolution better than the desktop.
+
+        0 < score <= 1
+        1 best resolution
+        """
+        image_pixels = image.width * image.height
+        desktop_pixels = self.width * self.height
+
+        if image_pixels > desktop_pixels:
+            score = 1.0
+        else:
+            score = image_pixels / desktop_pixels
+
+        log("image_pixels={:.2f} desktop_pixels={:.2f} score={:.2f}".format(
+            image_pixels, desktop_pixels, score), level=3)
+
+        return score
+
+    def _score_jitter(self, image):
+        score = random.random()
+        log("jitter score={:.2f}".format(score), level=3)
+        return score
+
     def _choose_image_urls(self):
+        """
+        Image Choosing Algorithm
+
+        If a user supplies URLs, then just shuffle them since we really
+        don't have any way of determining the 'best' images.
+
+        For images pulled from Reddit, we have the width and height metadata
+        and so we can prefer images that will look better on a given desktop.
+
+        To handle this we will assign a 'weight' to each image based on some
+        criteria and then sort the images by that weight.
+
+        The criteria is as follows:
+
+            1) Aspect ratio: images that are similar in aspect ratio to the
+               current desktop are preferred
+
+            2) Resolution: images with higher resolution are preferred
+
+            3) Jitter: a bit of randomness is added to that successive runs
+               produce different results
+
+        The best images should go last because we treat this like a stack.
+        """
         if self.image_urls:
+            log('Total candidate images: {}'.format(len(self.image_urls)))
             random.shuffle(self.image_urls)
             return self.image_urls
 
-        log("Min resolution: {}".format(_min_resolution_str(self.min_resolution)))
-        min_x, min_y = self.min_resolution
-        image_urls = []
+        # Accumulate images across subreddits
+        images = []
         for subreddit in self.subreddits:
-            images = subreddit.fetch_images()
-            log('{} images before sorting and filtering'.format(len(images)))
-            _images = []
-            for image in images:
-                res_str = _min_resolution_str((image.width, image.height))
-                if image.width >= min_x and image.height >= min_y:
-                    log("Keeping {} with resolution {}".format(
-                        image.url, res_str), level=2)
-                    _images.append(image)
-                else:
-                    log("Rejecting {} with resolution {}".format(
-                        image.url, res_str), level=2)
+            for image in subreddit.fetch_images():
+                images.append(image)
 
-        image_urls.extend([i.url for i in _images])
+        log('Total candidate images: {}'.format(len(images)))
+
+        # Score each image based on our criteria and their associated weight
+        scores = {}
+        for image in images:
+            log("Score components for {}".format(image.url), level=3)
+            score = 0.0
+            score += WEIGHT_ASPECT_RATIO * self._score_aspect_ratio(image)
+            score += WEIGHT_RESOLUTION * self._score_resolution(image)
+            score += WEIGHT_JITTER * self._score_jitter(image)
+            score /= 3
+            scores[image.url] = score
+
+        # Sort so highest scoring images are last
+        url_scores = scores.items()
+        url_scores.sort(key=operator.itemgetter(1))
+
+        # Return ordered list of just image URLs
+        image_urls = []
+        log("{:>5} {}".format("Score", "URL"), level=2)
+        log("=" * 120, level=2)
+        for url, score in url_scores:
+            log("{:>5.2f} {}".format(score, url), level=2)
+            image_urls.append(url)
+
         return image_urls
 
     def fetch_backgrounds(self):
         image_urls = self._choose_image_urls()
-        log('Total candidate images: {0}'.format(len(image_urls)))
 
         image_count = get_image_count()
         if image_count <= 0:
@@ -216,8 +296,9 @@ def _get_desktops_with_defaults():
     matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
     desktops = []
     for num, res in enumerate(matches, start=1):
-        desktop = Desktop(num,
-                          min_resolution=(int(res[0]), int(res[1])),
+        width = int(res[0])
+        height = int(res[1])
+        desktop = Desktop(num, width, height,
                           subreddit_tokens=DEFAULT_SUBREDDIT_TOKENS)
         desktops.append(desktop)
     return desktops
@@ -381,16 +462,6 @@ def _read_config_file(desktops):
             if tokens:
                 desktop.subreddit_tokens = tokens
 
-    def parse_min_resolution(desktop, section):
-        try:
-            min_resolution = config.get(section, 'min_resolution')
-        except ConfigParser.NoOptionError:
-            pass
-        else:
-            min_resolution = _parse_min_resolution(min_resolution)
-            if min_resolution:
-                desktop.min_resolution = min_resolution
-
     config = ConfigParser.ConfigParser()
     with open(path) as f:
         config.readfp(f)
@@ -400,7 +471,6 @@ def _read_config_file(desktops):
         if section not in config.sections():
             section = 'default'
         parse_subreddit_tokens(desktop, section)
-        parse_min_resolution(desktop, section)
 
     if 'default' in config.sections():
         try:
@@ -424,9 +494,6 @@ def _handle_cli_options(desktops):
     parser.add_argument('--desktop', type=int, default=0,
             help='set background for this desktop'
                  ' (default: sets background for all desktops)')
-    parser.add_argument('--min-resolution',
-            help='minimum resolution allowed for image'
-                 ' (default: screen resolution used)')
     parser.add_argument('-v', '--verbose', action='count',
             help='log to stderr (use -vv for even more info)')
     parser.add_argument('--url',
@@ -456,10 +523,6 @@ def _handle_cli_options(desktops):
     for desktop in desktops:
         if args.url:
             desktop.image_urls = [args.url]
-        if args.min_resolution:
-            min_resolution = _parse_min_resolution(args.min_resolution)
-            if min_resolution:
-                desktop.min_resolution = min_resolution
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
 
