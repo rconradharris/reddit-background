@@ -161,7 +161,7 @@ class Desktop(object):
         if image_pixels > desktop_pixels:
             score = 1.0
         else:
-            score = image_pixels / desktop_pixels
+            score = float(image_pixels) / desktop_pixels
 
         log("image_pixels={:.2f} desktop_pixels={:.2f} score={:.2f}".format(
             image_pixels, desktop_pixels, score), level=3)
