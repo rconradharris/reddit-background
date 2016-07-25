@@ -1,4 +1,5 @@
 2.0beta
+    * BUGFIX: Warn if unable to set background
     * FEATURE: Added --version option
     * BREAKING CHANGE: Images are downloaded to a per-desktop directory
     * BREAKING CHANGE: --image-count replaces --download-only, when set it
