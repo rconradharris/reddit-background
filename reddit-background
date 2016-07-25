@@ -212,7 +212,6 @@ class Desktop(object):
         log('Total candidate images: {}'.format(len(images)))
 
         # Score each image based on our criteria and their associated weight
-        scores = {}
         for image in images:
             log("Score components for {}".format(image.url), level=3)
             score = 0.0
@@ -220,19 +219,19 @@ class Desktop(object):
             score += WEIGHT_RESOLUTION * self._score_resolution(image)
             score += WEIGHT_JITTER * self._score_jitter(image)
             score /= 3
-            scores[image.url] = score
+            image.score += score
 
         # Sort so highest scoring images are last
-        url_scores = scores.items()
-        url_scores.sort(key=operator.itemgetter(1))
+        images.sort(key=operator.attrgetter('score'))
 
         # Return ordered list of just image URLs
         image_urls = []
-        log("{:>5} {}".format("Score", "URL"), level=2)
+        log("{:>5} {}".format("Score", "Title"), level=2)
         log("=" * 120, level=2)
-        for url, score in url_scores:
-            log("{:>5.2f} {}".format(score, url), level=2)
-            image_urls.append(url)
+        for image in images:
+            log(u"{:>5.2f} '{}'".format(image.score, image.display_title),
+                level=2)
+            image_urls.append(image.url)
 
         return image_urls
 
@@ -372,10 +371,21 @@ def _get_northern_hemisphere_season():
 
 
 class Image(object):
-    def __init__(self, width, height, url):
+    TITLE_MAX_LENGTH = 64
+
+    def __init__(self, width, height, url, title, score=0.0):
         self.width = width
         self.height = height
         self.url = url
+        self.title = title
+        self.score = score
+
+    @property
+    def display_title(self):
+        if len(self.title) <= self.TITLE_MAX_LENGTH:
+            return self.title
+        else:
+            return self.title[:self.TITLE_MAX_LENGTH - 3] + u'...'
 
 
 class Subreddit(object):
@@ -412,7 +422,10 @@ class Subreddit(object):
             except (KeyError, IndexError):
                 continue
             else:
-                image = Image(image_data['width'], image_data['height'], image_data['url'])
+                image = Image(image_data['width'],
+                              image_data['height'],
+                              image_data['url'],
+                              child['data']['title'])
                 images.append(image)
 
         return images
