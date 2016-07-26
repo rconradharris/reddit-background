@@ -24,6 +24,7 @@ import ConfigParser
 import argparse
 import datetime
 import json
+import math
 import operator
 import os
 import random
@@ -56,6 +57,7 @@ _IMAGE_COUNT = 0
 WEIGHT_ASPECT_RATIO = 1.0
 WEIGHT_RESOLUTION = 1.0
 WEIGHT_JITTER = 1.0
+WEIGHT_REDDIT_SCORE = 1.0
 
 
 def set_verbosity(verbosity):
@@ -126,6 +128,25 @@ class Desktop(object):
         """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
         subdir = 'Desktop {}'.format(self.num)
         return os.path.join(get_download_directory(), subdir)
+
+    def _score_reddit_score(self, image, log_lo_score, log_hi_score):
+        """Scoring criteria: The higher the Reddit score, the better the
+        image.
+
+        Since Reddit scores are exponential ('hot' stuff is *much* higher in
+        score than 'cold' stuff), we normalize using the log of the
+        reddit_score.
+
+        0 < score <= 1
+        """
+        log_score = math.log1p(image.raw_reddit_score)
+        assert log_lo_score <= log_score <= log_hi_score, \
+                "lo={} score={} hi={}".format(
+                    log_lo_score, log_score, log_hi_score)
+        score = float(log_score - log_lo_score) / (log_hi_score - log_lo_score)
+        log("reddit_score={:.2f} score={:.2f}".format(
+            image.reddit_score, score), level=3)
+        return score
 
     def _score_aspect_ratio(self, image):
         """Scoring criteria: The closer an image is to the aspect ratio of the
@@ -204,32 +225,62 @@ class Desktop(object):
             return self.image_urls
 
         # Accumulate images across subreddits
+        lo_reddit_score = 0.0
+        hi_reddit_score = 0.0
         images = []
         for subreddit in self.subreddits:
             for image in subreddit.fetch_images():
+                if image.raw_reddit_score < lo_reddit_score:
+                    lo_reddit_score = image.raw_reddit_score
+                if image.raw_reddit_score > hi_reddit_score:
+                    hi_reddit_score = image.raw_reddit_score
                 images.append(image)
+
+        log_lo_score = math.log1p(lo_reddit_score)
+        log_hi_score = math.log1p(hi_reddit_score)
 
         log('Total candidate images: {}'.format(len(images)))
 
         # Score each image based on our criteria and their associated weight
         for image in images:
-            log("Score components for {}".format(image.url), level=3)
-            score = 0.0
-            score += WEIGHT_ASPECT_RATIO * self._score_aspect_ratio(image)
-            score += WEIGHT_RESOLUTION * self._score_resolution(image)
-            score += WEIGHT_JITTER * self._score_jitter(image)
-            score /= 3
-            image.score += score
+            log(u"Score components for '{}'".format(image.display_title), level=3)
+            image.aspect_ratio_score = (
+                    WEIGHT_ASPECT_RATIO * self._score_aspect_ratio(image))
+            image.resolution_score = (
+                WEIGHT_RESOLUTION * self._score_resolution(image))
+            image.jitter_score = (
+                WEIGHT_JITTER * self._score_jitter(image))
+            image.reddit_score = (
+                WEIGHT_REDDIT_SCORE * self._score_reddit_score(
+                    image, log_lo_score, log_hi_score))
+            score_parts = [image.aspect_ratio_score,
+                           image.resolution_score,
+                           image.jitter_score,
+                           image.reddit_score]
+            image.score = float(sum(score_parts)) / len(score_parts)
 
         # Sort so highest scoring images are last
         images.sort(key=operator.attrgetter('score'))
 
         # Return ordered list of just image URLs
         image_urls = []
-        log("{:>5} {}".format("Score", "Title"), level=2)
+        log("{:>5}{:>8}{:>8}{:>8}{:>8} {}".format(
+                                    "Score",
+                                    "Aspect",
+                                    "Res",
+                                    "Reddit",
+                                    "Jitter",
+                                    "Title"),
+            level=2)
         log("=" * 120, level=2)
         for image in images:
-            log(u"{:>5.2f} '{}'".format(image.score, image.display_title),
+            log(u"{:>5.2f}{:>6.2f}{:>8.2f}{:>8.2f}{:>8.2f} '{}'".format(
+                    image.score,
+                    image.aspect_ratio_score,
+                    image.resolution_score,
+                    image.reddit_score,
+                    image.jitter_score,
+                    image.display_title),
                 level=2)
             image_urls.append(image.url)
 
@@ -373,12 +424,22 @@ def _get_northern_hemisphere_season():
 class Image(object):
     TITLE_MAX_LENGTH = 64
 
-    def __init__(self, width, height, url, title, score=0.0):
+    def __init__(self, width, height, url, title, raw_reddit_score,
+                 score=0.0,
+                 aspect_ratio_score=0.0,
+                 resolution_score=0.0,
+                 jitter_score=0.0,
+                 reddit_score=0.0):
         self.width = width
         self.height = height
         self.url = url
         self.title = title
+        self.raw_reddit_score = raw_reddit_score
         self.score = score
+        self.aspect_ratio_score = aspect_ratio_score
+        self.resolution_score = resolution_score
+        self.jitter_score = jitter_score
+        self.reddit_score = reddit_score
 
     @property
     def display_title(self):
@@ -417,15 +478,17 @@ class Subreddit(object):
 
         images = []
         for child in data['data']['children']:
+            data = child['data']
             try:
-                image_data = child['data']['preview']['images'][0]['source']
+                image_data = data['preview']['images'][0]['source']
             except (KeyError, IndexError):
                 continue
             else:
                 image = Image(image_data['width'],
                               image_data['height'],
                               image_data['url'],
-                              child['data']['title'])
+                              data['title'],
+                              int(data['score']))
                 images.append(image)
 
         return images
