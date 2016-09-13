@@ -331,7 +331,7 @@ class Desktop(object):
         script = 'tell application "System Events" to set picture of item'\
                  ' {num} of (a reference to every desktop) to "{filename}"'\
                  .format(num=self.num, filename=filename)
-        if subprocess.check_output(['/usr/bin/osascript', '-e', script]):
+        if subprocess.call(['/usr/bin/osascript', '-e', script]):
             warn("unable to set background to '{}'".format(filename))
 
 
