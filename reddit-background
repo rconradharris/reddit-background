@@ -36,6 +36,11 @@ import sys
 import urllib2
 import urlparse
 import uuid
+from sys import platform
+# Identify displays on Linux platforms using Xlib
+if platform == "linux" or platform == "linux2":
+    import Xlib.display
+    import Xlib.ext.randr
 
 __version__ = '2.0beta'
 
@@ -52,10 +57,6 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 _VERBOSITY = 0
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
-_LINUX = False
-if _LINUX:
-    from Xlib import X, display
-    from Xlib.ext import randr
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
@@ -334,7 +335,7 @@ class Desktop(object):
         log('Setting background for desktop {0}'.format(self.num))
 
         # set wallpaper on Linux
-        if _LINUX:
+        if platform == "linux" or platform == "linux2":
             if subprocess.call(['feh', '--bg-fill', filename]):
                 warn("unable to set background to '{}'".format(filename))
 
@@ -356,17 +357,16 @@ def _get_desktops_with_defaults():
 
     # get Linux displays
     # source: http://stackoverflow.com/questions/8705814/get-display-count-and-resolution-for-each-display-in-python-without-xrandr
-    if _LINUX:
-        d = display.Display()
+    if platform == "linux" or platform == "linux2":
+        d = Xlib.display.Display()
         s = d.screen()
         window = s.root.create_window(0, 0, 1, 1, 1, s.root_depth)
-        res = randr.get_screen_resources(window)
+        res = Xlib.ext.randr.get_screen_resources(window)
         modes = []
-        desktops = []
         matches = []
         for output in res.outputs:
             # use largest resolution per output
-            available_modes = randr.get_output_info(window, output, 0).modes
+            available_modes = Xlib.ext.randr.get_output_info(window, output, 0).modes
             if len(available_modes) > 0:
                 modes.append(available_modes[0])
 
@@ -632,6 +632,9 @@ def _handle_cli_options(desktops):
 
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
+        if platform == "linux" or platform == "linux2":
+            warn('--desktop is ignored on Linux systems')
+
 
     for desktop in desktops:
         if args.url:
