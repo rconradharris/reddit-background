@@ -1,14 +1,14 @@
 reddit-background
 =================
 
-Set your Mac OS X desktop background to images pulled from [Reddit](https://reddit.com)
+Set your Mac OS X or Linux desktop background to images pulled from [Reddit](https://reddit.com)
 
 ![Screenshot](https://raw.githubusercontent.com/rconradharris/reddit-background/master/screenshot.jpg)
 
 Features
 --------
 
-- Supports multiple monitors
+- Supports multiple monitors (Mac OS X only)
 - Handles multiple subreddits
 - Aspect ratio and resolution filtering ensures your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads

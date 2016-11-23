@@ -7,4 +7,5 @@
     * BREAKING CHANGE: --image-count replaces --download-only, when set it
       downloads that number of images per desktop into the download directory
     * BREAKING CHANGE: Removed --min-resolution option, filtering now uses an
-      algorithm that takes into account aspect ratio and resolution
+	  algorithm that takes into account aspect ratio and resolution
+    * FEATURE: Added support for Linux systems
