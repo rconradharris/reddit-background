@@ -52,6 +52,10 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 _VERBOSITY = 0
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
+_LINUX = False
+if _LINUX:
+    from Xlib import X, display
+    from Xlib.ext import randr
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
@@ -328,11 +332,19 @@ class Desktop(object):
 
     def set_background(self, filename):
         log('Setting background for desktop {0}'.format(self.num))
-        script = 'tell application "System Events" to set picture of item'\
-                 ' {num} of (a reference to every desktop) to "{filename}"'\
-                 .format(num=self.num, filename=filename)
-        if subprocess.call(['/usr/bin/osascript', '-e', script]):
-            warn("unable to set background to '{}'".format(filename))
+
+        # set wallpaper on Linux
+        if _LINUX:
+            if subprocess.call(['feh', '--bg-fill', filename]):
+                warn("unable to set background to '{}'".format(filename))
+
+        # set wallpaper on Mac
+        else:
+            script = 'tell application "System Events" to set picture of item'\
+                    ' {num} of (a reference to every desktop) to "{filename}"'\
+                    .format(num=self.num, filename=filename)
+            if subprocess.call(['/usr/bin/osascript', '-e', script]):
+                warn("unable to set background to '{}'".format(filename))
 
 
 def _get_desktops_with_defaults():
@@ -341,12 +353,37 @@ def _get_desktops_with_defaults():
     Customizations will be performed by overriding these values, first using
     the config file and later command-line options.
     """
-    p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
+
+    # get Linux displays
+    # source: http://stackoverflow.com/questions/8705814/get-display-count-and-resolution-for-each-display-in-python-without-xrandr
+    if _LINUX:
+        d = display.Display()
+        s = d.screen()
+        window = s.root.create_window(0, 0, 1, 1, 1, s.root_depth)
+        res = randr.get_screen_resources(window)
+        modes = []
+        desktops = []
+        matches = []
+        for output in res.outputs:
+            # use largest resolution per output
+            available_modes = randr.get_output_info(window, output, 0).modes
+            if len(available_modes) > 0:
+                modes.append(available_modes[0])
+
+        for mode in res.modes:
+            if mode.id in modes:
+                matches.append((mode.width, mode.height))
+
+    # get Mac displays
+    else:
+        p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
                          stdout=subprocess.PIPE)
-    (output, err) = p.communicate()
-    matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
+        (output, err) = p.communicate()
+        matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
+
     desktops = []
     for num, res in enumerate(matches, start=1):
+        print num
         width = int(res[0])
         height = int(res[1])
         desktop = Desktop(num, width, height,
