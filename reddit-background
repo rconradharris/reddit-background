@@ -383,7 +383,6 @@ def _get_desktops_with_defaults():
 
     desktops = []
     for num, res in enumerate(matches, start=1):
-        print num
         width = int(res[0])
         height = int(res[1])
         desktop = Desktop(num, width, height,
