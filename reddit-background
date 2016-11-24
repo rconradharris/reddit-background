@@ -36,9 +36,10 @@ import sys
 import urllib2
 import urlparse
 import uuid
-from sys import platform
+
 # Identify displays on Linux platforms using Xlib
-if platform == "linux" or platform == "linux2":
+_MAC = sys.platform == 'darwin'
+if not _MAC:
     import Xlib.display
     import Xlib.ext.randr
 
@@ -333,19 +334,17 @@ class Desktop(object):
 
     def set_background(self, filename):
         log('Setting background for desktop {0}'.format(self.num))
-
-        # set wallpaper on Linux
-        if platform == "linux" or platform == "linux2":
-            if subprocess.call(['feh', '--bg-fill', filename]):
-                warn("unable to set background to '{}'".format(filename))
-
-        # set wallpaper on Mac
-        else:
+        if _MAC:
+            # Mac
             script = 'tell application "System Events" to set picture of item'\
                     ' {num} of (a reference to every desktop) to "{filename}"'\
                     .format(num=self.num, filename=filename)
-            if subprocess.call(['/usr/bin/osascript', '-e', script]):
-                warn("unable to set background to '{}'".format(filename))
+            cmd = ['/usr/bin/osascript', '-e', script]
+        else:
+            # Linux
+            cmd = ['feh', '--bg-fill', filename]
+        if subprocess.call(cmd):
+            warn("unable to set background to '{}'".format(filename))
 
 
 def _get_desktops_with_defaults():
@@ -354,10 +353,15 @@ def _get_desktops_with_defaults():
     Customizations will be performed by overriding these values, first using
     the config file and later command-line options.
     """
-
-    # get Linux displays
-    # source: http://stackoverflow.com/questions/8705814/get-display-count-and-resolution-for-each-display-in-python-without-xrandr
-    if platform == "linux" or platform == "linux2":
+    if _MAC:
+        # Mac
+        p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
+                         stdout=subprocess.PIPE)
+        (output, err) = p.communicate()
+        matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
+    else:
+        # Linux
+        # source: http://stackoverflow.com/questions/8705814/get-display-count-and-resolution-for-each-display-in-python-without-xrandr
         d = Xlib.display.Display()
         s = d.screen()
         window = s.root.create_window(0, 0, 1, 1, 1, s.root_depth)
@@ -373,13 +377,6 @@ def _get_desktops_with_defaults():
         for mode in res.modes:
             if mode.id in modes:
                 matches.append((mode.width, mode.height))
-
-    # get Mac displays
-    else:
-        p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
-                         stdout=subprocess.PIPE)
-        (output, err) = p.communicate()
-        matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
 
     desktops = []
     for num, res in enumerate(matches, start=1):
@@ -632,9 +629,8 @@ def _handle_cli_options(desktops):
 
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
-        if platform == "linux" or platform == "linux2":
+        if not _MAC:
             warn('--desktop is ignored on Linux systems')
-
 
     for desktop in desktops:
         if args.url:
