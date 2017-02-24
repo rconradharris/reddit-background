@@ -292,23 +292,8 @@ class Desktop(object):
 
         return image_urls
 
-    def fetch_backgrounds(self):
+    def fetch_backgrounds(self, image_count):
         image_urls = self._choose_image_urls()
-
-        image_count = get_image_count()
-        if image_count <= 0:
-            # image_count<=0 is set-background-mode.
-            #
-            # In set-background-mode, we download a single image per-desktop
-            # and set that as the background.
-            #
-            # The opposite of set-background-mode is download-only-mode, when
-            # image_count>0.
-            #
-            # In download-only-mode, we download the number of images
-            # requested and DO NOT set the background (user configures OS X
-            # to set background from folder)
-            image_count = 1
 
         log('Number of images to download: {0}'.format(image_count))
         filenames = []
@@ -647,11 +632,19 @@ def main():
 
     _clear_download_directory()
 
+    image_count = get_image_count()
+
     for desktop in desktops:
-        filenames = desktop.fetch_backgrounds()
-        if get_image_count():
+        if image_count > 0:
+            # Download-only mode (downloads multiple images, but doesn't set
+            # the background because we'll let the OS's native
+            # background-setting utility handle it)
+            desktop.fetch_backgrounds(image_count)
             log("Skipping setting background")
         else:
+            # Set-background mode (download the best image, and set the
+            # background ourselves)
+            filenames = desktop.fetch_backgrounds(1)
             if filenames:
                 desktop.set_background(filenames[0])
 
