@@ -1,4 +1,5 @@
 2.0beta
+    * FEATURE: Use title for image filename rather than non-descriptive UUID
     * BREAKING CHANGE: Removed --url option, really shouldn't exist
     * FEATURE: Incorporate Reddit score into image selection
     * FEATURE: Use post title instead of URL in logging

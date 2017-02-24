@@ -35,7 +35,6 @@ import subprocess
 import sys
 import urllib2
 import urlparse
-import uuid
 
 __version__ = '2.0beta'
 
@@ -347,9 +346,9 @@ class Desktop(object):
         images = self._choose_images()
 
         log('Number of images to download: {0}'.format(image_count))
-        filenames = []
+        paths = []
         while True:
-            if len(filenames) >= image_count:
+            if len(paths) >= image_count:
                 break  # Reached user-specified limit...
             try:
                 image = images.pop()
@@ -357,16 +356,17 @@ class Desktop(object):
                 warn('ran out of images before reaching number_of_images'
                      ' limit')
                 break
+
             try:
-                filename = _download_to_directory(
-                        image.url, self.download_directory)
+                path = _download_to_directory(
+                        image.url, self.download_directory, image.filename)
             except URLOpenError:
                 warn("unable to download '{}', skipping...".format(image.url))
                 continue  # Try next image...
             else:
-                filenames.append(filename)
+                paths.append(path)
 
-        return filenames
+        return paths
 
     def set_background(self, filename):
         log('Setting background for desktop {0}'.format(self.num))
@@ -404,32 +404,21 @@ def _urlopen(url):
         raise URLOpenError
 
 
-def _get_extension_from_url(url):
-    url_path = urlparse.urlparse(url).path
-    parts = url_path.rsplit('.', 1)
-    try:
-        return parts[1]
-    except IndexError:
-        return None
-
-
-def _download_to_directory(url, dirname):
+def _download_to_directory(url, dirname, filename):
     """Download a file to a particular directory"""
     _safe_makedirs(dirname)
 
-    ext = _get_extension_from_url(url)
-    basename = '.'.join([str(uuid.uuid4()), ext])
-    filename = os.path.join(dirname, basename)
+    path = os.path.join(dirname, filename)
 
-    log("Downloading '{0}' to '{1}'".format(url, filename))
+    log("Downloading '{0}' to '{1}'".format(url, path))
     response = _urlopen(url)
     try:
-        with open(filename, 'w') as f:
+        with open(path, 'w') as f:
             f.write(response.read())
     finally:
         response.close()
 
-    return filename
+    return path
 
 
 def _clear_download_directory():
@@ -481,6 +470,18 @@ class Image(object):
             return self.title
         else:
             return self.title[:self.TITLE_MAX_LENGTH - 3] + u'...'
+
+    @property
+    def filename(self):
+        filename = self.title.replace('/', '').replace('\\', '')
+        # Get extension from URL
+        url_path = urlparse.urlparse(self.url).path
+        parts = url_path.rsplit('.', 1)
+        try:
+            filename += '.' + parts[1]
+        except IndexError:
+            pass
+        return filename
 
 
 class Subreddit(object):
@@ -659,9 +660,9 @@ def main():
         else:
             # Set-background mode (download the best image, and set the
             # background ourselves)
-            filenames = desktop.fetch_backgrounds(1)
-            if filenames:
-                desktop.set_background(filenames[0])
+            paths = desktop.fetch_backgrounds(1)
+            if paths:
+                desktop.set_background(paths[0])
 
 
 if __name__ == "__main__":
