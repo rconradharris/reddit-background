@@ -270,7 +270,8 @@ class Desktop(object):
 
         # Return ordered list of just image URLs
         image_urls = []
-        log("{:>5}{:>8}{:>8}{:>8}{:>8} {}".format(
+        log("{:>10}{:>10}{:>10}{:>10}{:>10}{:>10} {}".format(
+                                    "Ranking",
                                     "Score",
                                     "Aspect",
                                     "Res",
@@ -279,8 +280,9 @@ class Desktop(object):
                                     "Title"),
             level=2)
         log("=" * 120, level=2)
-        for image in images:
-            log(u"{:>5.2f}{:>6.2f}{:>8.2f}{:>8.2f}{:>8.2f} '{}'".format(
+        for ranking, image in enumerate(images):
+            log(u"{:>10d}{:>10.2f}{:>10.2f}{:>10.2f}{:>10.2f}{:>10.2f} {}".format(
+                    len(images) - ranking,
                     image.score,
                     image.aspect_ratio_score,
                     image.resolution_score,
