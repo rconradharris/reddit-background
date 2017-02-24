@@ -37,12 +37,6 @@ import urllib2
 import urlparse
 import uuid
 
-# Identify displays on Linux platforms using Xlib
-_MAC = sys.platform == 'darwin'
-if not _MAC:
-    import Xlib.display
-    import Xlib.ext.randr
-
 __version__ = '2.0beta'
 
 # Defaults
@@ -58,6 +52,7 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 _VERBOSITY = 0
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
+_OS_HANDLER = None  # Set below...
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
@@ -113,6 +108,69 @@ def log(msg, level=1):
     """
     if get_verbosity() >= level:
         print >> sys.stderr, msg
+
+
+class OSHandler(object):
+    """Any OS specific code should go in these classes."""
+    def set_background(self, filename, **kwargs):
+        raise NotImplementedError
+
+    def get_desktop_resolutions(self):
+        raise NotImplementedError
+
+    @classmethod
+    def get_handler(cls):
+        if sys.platform == 'darwin':
+            return DarwinHandler()
+        elif sys.platform == 'linux2':
+            return LinuxHandler()
+        else:
+            raise Exception("OS not supported")
+
+
+class DarwinHandler(OSHandler):
+    def set_background(self, filename, **kwargs):
+        script = 'tell application "System Events" to set picture of item'\
+                ' {num} of (a reference to every desktop) to "{filename}"'\
+                .format(num=kwargs['num'], filename=filename)
+        cmd = ['/usr/bin/osascript', '-e', script]
+        if subprocess.call(cmd):
+            warn("unable to set background to '{}'".format(filename))
+
+    def get_desktop_resolutions(self):
+        p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
+                         stdout=subprocess.PIPE)
+        (output, err) = p.communicate()
+        return re.findall(RE_RESOLUTION_DISPLAYS, output)
+
+
+class LinuxHandler(OSHandler):
+    def set_background(self, filename, **kwargs):
+        cmd = ['feh', '--bg-fill', filename]
+        if subprocess.call(cmd):
+            warn("unable to set background to '{}'".format(filename))
+
+    def get_desktop_resolutions(self):
+        # source: http://stackoverflow.com/questions/8705814/get-display-count-and-
+        # resolution-for-each-display-in-python-without-xrandr
+        import Xlib.display
+        import Xlib.ext.randr
+        d = Xlib.display.Display()
+        s = d.screen()
+        window = s.root.create_window(0, 0, 1, 1, 1, s.root_depth)
+        res = Xlib.ext.randr.get_screen_resources(window)
+        modes = []
+        matches = []
+        for output in res.outputs:
+            # use largest resolution per output
+            available_modes = Xlib.ext.randr.get_output_info(window, output, 0).modes
+            if len(available_modes) > 0:
+                modes.append(available_modes[0])
+
+        for mode in res.modes:
+            if mode.id in modes:
+                matches.append((mode.width, mode.height))
+        return matches
 
 
 class Desktop(object):
@@ -321,17 +379,7 @@ class Desktop(object):
 
     def set_background(self, filename):
         log('Setting background for desktop {0}'.format(self.num))
-        if _MAC:
-            # Mac
-            script = 'tell application "System Events" to set picture of item'\
-                    ' {num} of (a reference to every desktop) to "{filename}"'\
-                    .format(num=self.num, filename=filename)
-            cmd = ['/usr/bin/osascript', '-e', script]
-        else:
-            # Linux
-            cmd = ['feh', '--bg-fill', filename]
-        if subprocess.call(cmd):
-            warn("unable to set background to '{}'".format(filename))
+        _OS_HANDLER.set_background(filename, num=self.num)
 
 
 def _get_desktops_with_defaults():
@@ -340,33 +388,8 @@ def _get_desktops_with_defaults():
     Customizations will be performed by overriding these values, first using
     the config file and later command-line options.
     """
-    if _MAC:
-        # Mac
-        p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
-                         stdout=subprocess.PIPE)
-        (output, err) = p.communicate()
-        matches = re.findall(RE_RESOLUTION_DISPLAYS, output)
-    else:
-        # Linux
-        # source: http://stackoverflow.com/questions/8705814/get-display-count-and-resolution-for-each-display-in-python-without-xrandr
-        d = Xlib.display.Display()
-        s = d.screen()
-        window = s.root.create_window(0, 0, 1, 1, 1, s.root_depth)
-        res = Xlib.ext.randr.get_screen_resources(window)
-        modes = []
-        matches = []
-        for output in res.outputs:
-            # use largest resolution per output
-            available_modes = Xlib.ext.randr.get_output_info(window, output, 0).modes
-            if len(available_modes) > 0:
-                modes.append(available_modes[0])
-
-        for mode in res.modes:
-            if mode.id in modes:
-                matches.append((mode.width, mode.height))
-
     desktops = []
-    for num, res in enumerate(matches, start=1):
+    for num, res in enumerate(_OS_HANDLER.get_desktop_resolutions(), start=1):
         width = int(res[0])
         height = int(res[1])
         desktop = Desktop(num, width, height,
@@ -616,7 +639,7 @@ def _handle_cli_options(desktops):
 
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
-        if not _MAC:
+        if isinstance(_OS_HANDLER, LinuxHandler):
             warn('--desktop is ignored on Linux systems')
 
     for desktop in desktops:
@@ -627,6 +650,9 @@ def _handle_cli_options(desktops):
 
 
 def main():
+    global _OS_HANDLER
+    _OS_HANDLER = OSHandler.get_handler()
+
     # Configuration override order: defaults -> config-file -> cli-options
     desktops = _get_desktops_with_defaults()
     _read_config_file(desktops)
