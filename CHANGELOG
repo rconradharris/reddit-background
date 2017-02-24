@@ -1,5 +1,6 @@
 2.0beta
-    - FEATURE: Incorporate Reddit score into image selection
+    * BREAKING CHANGE: Removed --url option, really shouldn't exist
+    * FEATURE: Incorporate Reddit score into image selection
     * FEATURE: Use post title instead of URL in logging
     * BUGFIX: Warn if unable to set background
     * FEATURE: Added --version option

@@ -174,13 +174,11 @@ class LinuxHandler(OSHandler):
 
 
 class Desktop(object):
-    def __init__(self, num, width, height, subreddit_tokens=None,
-                 image_urls=None):
+    def __init__(self, num, width, height, subreddit_tokens=None):
         self.num = num
         self.width = width
         self.height = height
         self.subreddit_tokens = subreddit_tokens or []
-        self.image_urls = image_urls or []
 
     @property
     def subreddits(self):
@@ -283,11 +281,6 @@ class Desktop(object):
 
         The best images should go last because we treat this like a stack.
         """
-        if self.image_urls:
-            log('Total candidate images: {}'.format(len(self.image_urls)))
-            random.shuffle(self.image_urls)
-            return self.image_urls
-
         # Accumulate images across subreddits
         lo_reddit_score = 0.0
         hi_reddit_score = 0.0
@@ -616,8 +609,6 @@ def _handle_cli_options(desktops):
                  ' (default: sets background for all desktops)')
     parser.add_argument('-v', '--verbose', action='count',
             help='log to stderr (use -vv for even more info)')
-    parser.add_argument('--url',
-            help='use image from this URL')
     parser.add_argument('--image-count', type=int,
             help="number of images to download (this only downloads the"
                  " images, it doesn't set the background)")
@@ -643,8 +634,6 @@ def _handle_cli_options(desktops):
             warn('--desktop is ignored on Linux systems')
 
     for desktop in desktops:
-        if args.url:
-            desktop.image_urls = [args.url]
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
 
