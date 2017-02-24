@@ -256,7 +256,7 @@ class Desktop(object):
         log("jitter score={:.2f}".format(score), level=3)
         return score
 
-    def _choose_image_urls(self):
+    def _choose_images(self):
         """
         Image Choosing Algorithm
 
@@ -319,8 +319,7 @@ class Desktop(object):
         # Sort so highest scoring images are last
         images.sort(key=operator.attrgetter('score'))
 
-        # Return ordered list of just image URLs
-        image_urls = []
+        # Display score table
         log("{:>10}{:>10}{:>10}{:>10}{:>10}{:>10} {}".format(
                                     "Ranking",
                                     "Score",
@@ -341,12 +340,11 @@ class Desktop(object):
                     image.jitter_score,
                     image.display_title),
                 level=2)
-            image_urls.append(image.url)
 
-        return image_urls
+        return images
 
     def fetch_backgrounds(self, image_count):
-        image_urls = self._choose_image_urls()
+        images = self._choose_images()
 
         log('Number of images to download: {0}'.format(image_count))
         filenames = []
@@ -354,16 +352,16 @@ class Desktop(object):
             if len(filenames) >= image_count:
                 break  # Reached user-specified limit...
             try:
-                image_url = image_urls.pop()
+                image = images.pop()
             except IndexError:
                 warn('ran out of images before reaching number_of_images'
                      ' limit')
                 break
             try:
                 filename = _download_to_directory(
-                        image_url, self.download_directory)
+                        image.url, self.download_directory)
             except URLOpenError:
-                warn("unable to download '{}', skipping...".format(image_url))
+                warn("unable to download '{}', skipping...".format(image.url))
                 continue  # Try next image...
             else:
                 filenames.append(filename)
