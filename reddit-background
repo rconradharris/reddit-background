@@ -139,9 +139,9 @@ class OSHandler(object):
 
 class DarwinHandler(OSHandler):
     def set_background(self, filename, **kwargs):
-        script = 'tell application "System Events" to set picture of item'\
-                ' {num} of (a reference to every desktop) to "{filename}"'\
-                .format(num=kwargs['num'], filename=filename)
+        script = u'tell application "System Events" to set picture of item'\
+                 u' {num} of (a reference to every desktop) to "{filename}"'\
+                 .format(num=kwargs['num'], filename=filename)
         cmd = ['/usr/bin/osascript', '-e', script]
         if subprocess.call(cmd):
             warn("unable to set background to '{}'".format(filename))
@@ -157,7 +157,7 @@ class LinuxHandler(OSHandler):
     def set_background(self, filename, **kwargs):
         cmd = ['feh', '--bg-fill', filename]
         if subprocess.call(cmd):
-            warn("unable to set background to '{}'".format(filename))
+            warn(u"unable to set background to '{}'".format(filename))
 
     def get_desktop_resolutions(self):
         # source: http://stackoverflow.com/questions/8705814/get-display-count-and-
@@ -216,10 +216,10 @@ class Desktop(object):
         """
         log_score = math.log1p(image.raw_reddit_score)
         assert log_lo_score <= log_score <= log_hi_score, \
-                "lo={} score={} hi={}".format(
+                u"lo={} score={} hi={}".format(
                     log_lo_score, log_score, log_hi_score)
         score = float(log_score - log_lo_score) / (log_hi_score - log_lo_score)
-        log("reddit_score={:.2f} score={:.2f}".format(
+        log(u"reddit_score={:.2f} score={:.2f}".format(
             image.reddit_score, score), level=3)
         return score
 
@@ -238,7 +238,7 @@ class Desktop(object):
         else:
             score = image_aspect_ratio / desktop_aspect_ratio
 
-        log("image_aspect_ratio={:.2f} desktop_aspect_ratio={:.2f} score={:.2f}".format(
+        log(u"image_aspect_ratio={:.2f} desktop_aspect_ratio={:.2f} score={:.2f}".format(
             image_aspect_ratio, desktop_aspect_ratio, score), level=3)
 
         return score
@@ -259,14 +259,14 @@ class Desktop(object):
         else:
             score = float(image_pixels) / desktop_pixels
 
-        log("image_pixels={:.2f} desktop_pixels={:.2f} score={:.2f}".format(
+        log(u"image_pixels={:.2f} desktop_pixels={:.2f} score={:.2f}".format(
             image_pixels, desktop_pixels, score), level=3)
 
         return score
 
     def _score_jitter(self, image):
         score = random.random()
-        log("jitter score={:.2f}".format(score), level=3)
+        log(u"jitter score={:.2f}".format(score), level=3)
         return score
 
     def _choose_images(self):
@@ -333,16 +333,16 @@ class Desktop(object):
         images.sort(key=operator.attrgetter('score'))
 
         # Display score table
-        log("{:>10}{:>10}{:>10}{:>10}{:>10}{:>10} {}".format(
-                                    "Ranking",
-                                    "Score",
-                                    "Aspect",
-                                    "Res",
-                                    "Reddit",
-                                    "Jitter",
-                                    "Title"),
+        log(u"{:>10}{:>10}{:>10}{:>10}{:>10}{:>10} {}".format(
+                                    u"Ranking",
+                                    u"Score",
+                                    u"Aspect",
+                                    u"Res",
+                                    u"Reddit",
+                                    u"Jitter",
+                                    u"Title"),
             level=2)
-        log("=" * 120, level=2)
+        log(u"=" * 120, level=2)
         for ranking, image in enumerate(images):
             log(u"{:>10d}{:>10.2f}{:>10.2f}{:>10.2f}{:>10.2f}{:>10.2f} {}".format(
                     len(images) - ranking,
@@ -359,7 +359,7 @@ class Desktop(object):
     def fetch_backgrounds(self, image_count):
         images = self._choose_images()
 
-        log('Number of images to download: {0}'.format(image_count))
+        log(u'Number of images to download: {0}'.format(image_count))
         paths = []
         while True:
             if len(paths) >= image_count:
@@ -367,15 +367,15 @@ class Desktop(object):
             try:
                 image = images.pop()
             except IndexError:
-                warn('ran out of images before reaching number_of_images'
-                     ' limit')
+                warn(u'ran out of images before reaching number_of_images'
+                     u' limit')
                 break
 
             try:
                 path = _download_to_directory(
                         image.url, self.download_directory, image.filename)
             except URLOpenError:
-                warn("unable to download '{}', skipping...".format(image.url))
+                warn(u"unable to download '{}', skipping...".format(image.url))
                 continue  # Try next image...
             else:
                 paths.append(path)
@@ -383,7 +383,7 @@ class Desktop(object):
         return paths
 
     def set_background(self, filename):
-        log('Setting background for desktop {0}'.format(self.num))
+        log(u'Setting background for desktop {0}'.format(self.num))
         _OS_HANDLER.set_background(filename, num=self.num)
 
 
@@ -424,7 +424,7 @@ def _download_to_directory(url, dirname, filename):
 
     path = os.path.join(dirname, filename)
 
-    log("Downloading '{0}' to '{1}'".format(url, path))
+    log(u"Downloading '{0}' to '{1}'".format(url, path))
     response = _urlopen(url)
     try:
         with open(path, 'w') as f:
@@ -487,12 +487,12 @@ class Image(object):
 
     @property
     def filename(self):
-        filename = self.title.replace('/', '').replace('\\', '')
+        filename = self.title.replace(u'/', u'').replace(u'\\', u'')
         # Get extension from URL
         url_path = urlparse.urlparse(self.url).path
         parts = url_path.rsplit('.', 1)
         try:
-            filename += '.' + parts[1]
+            filename += u'.' + parts[1]
         except IndexError:
             pass
         return filename
