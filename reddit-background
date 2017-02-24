@@ -49,6 +49,7 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 
 # Globals
 _VERBOSITY = 0
+_WHAT = False
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
@@ -67,6 +68,15 @@ def set_verbosity(verbosity):
 
 def get_verbosity():
     return _VERBOSITY
+
+
+def set_what(what):
+    global _WHAT
+    _WHAT = what
+
+
+def get_what():
+    return _WHAT
 
 
 def set_download_directory(directory):
@@ -189,6 +199,10 @@ class Desktop(object):
         """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
         subdir = 'Desktop {}'.format(self.num)
         return os.path.join(get_download_directory(), subdir)
+
+    @property
+    def downloaded_images(self):
+        return os.listdir(self.download_directory)
 
     def _score_reddit_score(self, image, log_lo_score, log_hi_score):
         """Scoring criteria: The higher the Reddit score, the better the
@@ -613,6 +627,9 @@ def _handle_cli_options(desktops):
                  " images, it doesn't set the background)")
     parser.add_argument('--download-directory',
             help='directory to use to store images')
+    parser.add_argument('--what',
+            action='store_true',
+            help='display what images are downloaded for each desktop')
     parser.add_argument('--version',
                         action='version',
                         version=__version__)
@@ -620,6 +637,7 @@ def _handle_cli_options(desktops):
     args = parser.parse_args()
 
     set_verbosity(args.verbose)
+    set_what(args.what)
 
     if args.image_count is not None:
         set_image_count(args.image_count)
@@ -637,6 +655,13 @@ def _handle_cli_options(desktops):
             desktop.subreddit_tokens = args.subreddits
 
 
+def show_whats_downloaded(desktops):
+    for desktop in desktops:
+        print "Desktop {}".format(desktop.num)
+        for filename in  desktop.downloaded_images:
+            print "\t{}".format(filename)
+
+
 def main():
     global _OS_HANDLER
     _OS_HANDLER = OSHandler.get_handler()
@@ -645,6 +670,10 @@ def main():
     desktops = _get_desktops_with_defaults()
     _read_config_file(desktops)
     _handle_cli_options(desktops)
+
+    if get_what():
+        show_whats_downloaded(desktops)
+        return
 
     _clear_download_directory()
 
