@@ -40,8 +40,8 @@ __version__ = '2.0beta'
 
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
-DEFAULT_CONFIG_PATH = "~/.reddit-background.conf"
-DEFAULT_DOWNLOAD_DIRECTORY = "~/Reddit Backgrounds"
+DEFAULT_CONFIG_PATH = u"~/.reddit-background.conf"
+DEFAULT_DOWNLOAD_DIRECTORY = u"~/Reddit Backgrounds"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
 
 # Regexs
@@ -86,7 +86,8 @@ def set_download_directory(directory):
 
 def get_download_directory():
     dirname = _DOWNLOAD_DIRECTORY or DEFAULT_DOWNLOAD_DIRECTORY
-    return os.path.expanduser(dirname)
+    # This needs to be Unicode so that os.listdir returns Unicode filenames
+    return unicode(os.path.expanduser(dirname))
 
 
 def set_image_count(image_count):
@@ -202,6 +203,8 @@ class Desktop(object):
 
     @property
     def downloaded_images(self):
+        if not os.path.exists(self.download_directory):
+            return []
         return os.listdir(self.download_directory)
 
     def _score_reddit_score(self, image, log_lo_score, log_hi_score):
@@ -358,6 +361,8 @@ class Desktop(object):
 
     def fetch_backgrounds(self, image_count):
         images = self._choose_images()
+        downloaded_filenames = self.downloaded_images
+        _clear_download_directory()
 
         log(u'Number of images to download: {0}'.format(image_count))
         paths = []
@@ -370,7 +375,11 @@ class Desktop(object):
                 warn(u'ran out of images before reaching number_of_images'
                      u' limit')
                 break
-
+            # Don't re-use an image that's already downloaded
+            if image.filename in downloaded_filenames:
+                log(u"'{}' already downloaded, skipping...".format(
+                    image.filename), level=2)
+                continue
             try:
                 path = _download_to_directory(
                         image.url, self.download_directory, image.filename)
@@ -674,8 +683,6 @@ def main():
     if get_what():
         show_whats_downloaded(desktops)
         return
-
-    _clear_download_directory()
 
     image_count = get_image_count()
 
