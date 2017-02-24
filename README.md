@@ -134,11 +134,6 @@ single monitor using the `--desktop` option like:
 This will set the background on desktop 1 to one of the 5 hottest posts from
 [/r/BeachPorn](https://reddit.com/r/BeachPorn).
 
-If you already know the URL of the image you’d like to use, you can use the
-`--url` option to automatically download it and set it the background like::
-
-    reddit-background --url http://www.visit2ethiopia.com/images/Addis%20Ababa01.jpg
-
 ### Download Configuration
 
 By default reddit-background will download a single image per desktop and set
