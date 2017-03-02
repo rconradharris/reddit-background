@@ -147,3 +147,19 @@ set number of images using the `--image-count` option. This will download these
 images into the download directory but not actually set them as the
 background. You then set `System Preferences -> Desktop -> Backgrounds` to
 point to the download directory for each desktop.
+
+### Show title of image
+
+If you'd like to know the title of the background you're looking at, you have
+two different options.
+
+On the command-line you can run:
+
+    reddit-background --what
+    Desktop 1
+        Perth, Western Australia, from Elizabeth Quay [5376x3024].jpg
+
+Another option is to enable the `desktop_symlinks=True` configuration. This
+will place a symlink on you desktop to your current images. This gives you
+easy access to the image, but more importantly, shows you the title of the
+image.

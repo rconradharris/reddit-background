@@ -50,6 +50,7 @@ RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
 # Globals
 _VERBOSITY = 0
 _WHAT = False
+_DESKTOP_SYMLINK = False
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
@@ -77,6 +78,15 @@ def set_what(what):
 
 def get_what():
     return _WHAT
+
+
+def set_desktop_symlink(desktop_symlink):
+    global _DESKTOP_SYMLINK
+    _DESKTOP_SYMLINK = desktop_symlink
+
+
+def get_desktop_symlink():
+    return _DESKTOP_SYMLINK
 
 
 def set_download_directory(directory):
@@ -120,9 +130,28 @@ def log(msg, level=1):
         print >> sys.stderr, msg
 
 
+def _clear_desktop_symlinks():
+    """The main purpose of the desktop symlink is to provide you an easy way
+    to see the title of your desktop without having to use the --what option.
+
+    (Assuming your desktop isn't too clutered ;-)
+    """
+    # Delete any existing desktop symlinks
+    download_directory = get_download_directory()
+    desktop_path = os.path.expanduser('~/Desktop')
+    for filename in os.listdir(desktop_path):
+        file_path = os.path.join(desktop_path, filename)
+        if not os.path.islink(file_path):
+            continue
+        real_path = os.path.realpath(file_path)
+        if real_path.startswith(download_directory):
+            log("Deleting desktop symlink '{}'".format(file_path))
+            os.unlink(file_path)
+
+
 class OSHandler(object):
     """Any OS specific code should go in these classes."""
-    def set_background(self, filename, **kwargs):
+    def set_background(self, path, **kwargs):
         raise NotImplementedError
 
     def get_desktop_resolutions(self):
@@ -139,13 +168,13 @@ class OSHandler(object):
 
 
 class DarwinHandler(OSHandler):
-    def set_background(self, filename, **kwargs):
+    def set_background(self, path, **kwargs):
         script = u'tell application "System Events" to set picture of item'\
-                 u' {num} of (a reference to every desktop) to "{filename}"'\
-                 .format(num=kwargs['num'], filename=filename)
+                 u' {num} of (a reference to every desktop) to "{path}"'\
+                 .format(num=kwargs['num'], path=path)
         cmd = ['/usr/bin/osascript', '-e', script]
         if subprocess.call(cmd):
-            warn("unable to set background to '{}'".format(filename))
+            warn("unable to set background to '{}'".format(path))
 
     def get_desktop_resolutions(self):
         p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
@@ -155,10 +184,10 @@ class DarwinHandler(OSHandler):
 
 
 class LinuxHandler(OSHandler):
-    def set_background(self, filename, **kwargs):
-        cmd = ['feh', '--bg-fill', filename]
+    def set_background(self, path, **kwargs):
+        cmd = ['feh', '--bg-fill', path]
         if subprocess.call(cmd):
-            warn(u"unable to set background to '{}'".format(filename))
+            warn(u"unable to set background to '{}'".format(path))
 
     def get_desktop_resolutions(self):
         # source: http://stackoverflow.com/questions/8705814/get-display-count-and-
@@ -189,6 +218,11 @@ class Desktop(object):
         self.width = width
         self.height = height
         self.subreddit_tokens = subreddit_tokens or []
+        # NOTE: we need to get the download-images at instantiation time and
+        # cache the results b/c we'll later clear the download directory
+        # before downloading the new images, meaning we can no longer tell
+        # what's already been downloaded
+        self.downloaded_images = self._get_downloaded_images()
 
     @property
     def subreddits(self):
@@ -201,8 +235,7 @@ class Desktop(object):
         subdir = 'Desktop {}'.format(self.num)
         return os.path.join(get_download_directory(), subdir)
 
-    @property
-    def downloaded_images(self):
+    def _get_downloaded_images(self):
         if not os.path.exists(self.download_directory):
             return []
         return os.listdir(self.download_directory)
@@ -276,9 +309,6 @@ class Desktop(object):
         """
         Image Choosing Algorithm
 
-        If a user supplies URLs, then just shuffle them since we really
-        don't have any way of determining the 'best' images.
-
         For images pulled from Reddit, we have the width and height metadata
         and so we can prefer images that will look better on a given desktop.
 
@@ -294,6 +324,8 @@ class Desktop(object):
 
             3) Jitter: a bit of randomness is added to that successive runs
                produce different results
+
+            4) Reddit Score: images with higher scores on reddit are preferred
 
         The best images should go last because we treat this like a stack.
         """
@@ -361,8 +393,6 @@ class Desktop(object):
 
     def fetch_backgrounds(self, image_count):
         images = self._choose_images()
-        downloaded_filenames = self.downloaded_images
-        _clear_download_directory()
 
         log(u'Number of images to download: {0}'.format(image_count))
         paths = []
@@ -376,7 +406,7 @@ class Desktop(object):
                      u' limit')
                 break
             # Don't re-use an image that's already downloaded
-            if image.filename in downloaded_filenames:
+            if image.filename in self.downloaded_images:
                 log(u"'{}' already downloaded, skipping...".format(
                     image.filename), level=2)
                 continue
@@ -391,9 +421,14 @@ class Desktop(object):
 
         return paths
 
-    def set_background(self, filename):
+    def set_background(self, path):
         log(u'Setting background for desktop {0}'.format(self.num))
-        _OS_HANDLER.set_background(filename, num=self.num)
+        _OS_HANDLER.set_background(path, num=self.num)
+        if get_desktop_symlink():
+            filename = os.path.basename(path)
+            desktop_path = os.path.expanduser('~/Desktop')
+            link_name = os.path.join(desktop_path, filename)
+            os.symlink(path, link_name)
 
 
 def _get_desktops_with_defaults():
@@ -613,6 +648,10 @@ def _read_config_file(desktops):
         except ConfigParser.NoOptionError:
             pass
         try:
+            set_desktop_symlink(config.getboolean('default', 'desktop_symlink'))
+        except ConfigParser.NoOptionError:
+            pass
+        try:
             download_directory = config.get('default', 'download_directory')
         except ConfigParser.NoOptionError:
             pass
@@ -636,6 +675,9 @@ def _handle_cli_options(desktops):
                  " images, it doesn't set the background)")
     parser.add_argument('--download-directory',
             help='directory to use to store images')
+    parser.add_argument('--desktop-symlink',
+            action='store_true',
+            help='show a symlink to the image on your desktop')
     parser.add_argument('--what',
             action='store_true',
             help='display what images are downloaded for each desktop')
@@ -658,6 +700,9 @@ def _handle_cli_options(desktops):
         desktops = [d for d in desktops if d.num == args.desktop]
         if isinstance(_OS_HANDLER, LinuxHandler):
             warn('--desktop is ignored on Linux systems')
+
+    if args.desktop_symlink:
+        set_desktop_symlink(args.desktop_symlink)
 
     for desktop in desktops:
         if args.subreddits:
@@ -685,6 +730,9 @@ def main():
         return
 
     image_count = get_image_count()
+
+    _clear_desktop_symlinks()
+    _clear_download_directory()
 
     for desktop in desktops:
         if image_count > 0:
