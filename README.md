@@ -75,7 +75,7 @@ Advanced
 ### Subreddit Sort Options
 
 By default, when you specify a subreddit, you are selecting the top 25 posts
-over the last week.
+over the last month.
 
 You can customize the sort by using the following format:
 
@@ -86,7 +86,7 @@ You can customize the sort by using the following format:
 | subreddit | A subreddit or {seasonal}                              | *None*  |
 | sort      | contraversial, gilded, hot, new, promoted, rising, top | top     |
 | limit     | An integer                                             | 25      |
-| timeframe | all, day, hour, month, week, year                      | week    |
+| timeframe | all, day, hour, month, week, year                      | month   |
 
 So, for example, if you want to only include the 5 newest posts from
 [/r/EarthPorn](https://reddit.com/r/EarthPorn), you would write it as:

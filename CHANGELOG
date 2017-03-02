@@ -1,4 +1,6 @@
 2.0beta
+    * BREAKING CHANGE: Changed default timeframe from week to month to improve
+      default results on low traffic'd reddits
     * FEATURE: Add --desktop-symlink option to make seeing image title easier
     * BUGFIX: Don't download an image that's already downloaded
     * FEATURE: Add --what option to display what's downloaded for each desktop

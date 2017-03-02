@@ -543,7 +543,7 @@ class Image(object):
 
 
 class Subreddit(object):
-    def __init__(self, desktop, name, sort='top', limit=25, timeframe='week'):
+    def __init__(self, desktop, name, sort='top', limit=25, timeframe='month'):
         self.desktop = desktop
         self.name = name
         self.sort = sort
