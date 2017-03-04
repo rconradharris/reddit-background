@@ -138,14 +138,15 @@ def _clear_desktop_symlinks():
     """
     # Delete any existing desktop symlinks
     download_directory = get_download_directory()
-    desktop_path = os.path.expanduser('~/Desktop')
+    desktop_path = os.path.expanduser(u'~/Desktop')
     for filename in os.listdir(desktop_path):
         file_path = os.path.join(desktop_path, filename)
         if not os.path.islink(file_path):
             continue
         real_path = os.path.realpath(file_path)
+        print real_path, type(real_path)
         if real_path.startswith(download_directory):
-            log("Deleting desktop symlink '{}'".format(file_path))
+            log(u"Deleting desktop symlink '{}'".format(file_path))
             os.unlink(file_path)
 
 
