@@ -144,7 +144,6 @@ def _clear_desktop_symlinks():
         if not os.path.islink(file_path):
             continue
         real_path = os.path.realpath(file_path)
-        print real_path, type(real_path)
         if real_path.startswith(download_directory):
             log(u"Deleting desktop symlink '{}'".format(file_path))
             os.unlink(file_path)
@@ -700,7 +699,7 @@ def _handle_cli_options(desktops):
     if args.desktop:
         desktops = [d for d in desktops if d.num == args.desktop]
         if isinstance(_OS_HANDLER, LinuxHandler):
-            warn('--desktop is ignored on Linux systems')
+            warn(u'--desktop is ignored on Linux systems')
 
     if args.desktop_symlink:
         set_desktop_symlink(args.desktop_symlink)
@@ -712,9 +711,9 @@ def _handle_cli_options(desktops):
 
 def show_whats_downloaded(desktops):
     for desktop in desktops:
-        print "Desktop {}".format(desktop.num)
+        print u"Desktop {}".format(desktop.num)
         for filename in  desktop.downloaded_images:
-            print "\t{}".format(filename)
+            print u"\t{}".format(filename)
 
 
 def main():
@@ -741,7 +740,7 @@ def main():
             # the background because we'll let the OS's native
             # background-setting utility handle it)
             desktop.fetch_backgrounds(image_count)
-            log("Skipping setting background")
+            log(u"Skipping setting background")
         else:
             # Set-background mode (download the best image, and set the
             # background ourselves)
