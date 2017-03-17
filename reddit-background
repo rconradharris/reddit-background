@@ -531,7 +531,9 @@ class Image(object):
 
     @property
     def filename(self):
-        filename = self.title.replace(u'/', u'').replace(u'\\', u'')
+        filename = self.display_title.replace(u'/', u'')\
+                                     .replace(u'\\', u'')\
+                                     .replace(u'.', u'')
         # Get extension from URL
         url_path = urlparse.urlparse(self.url).path
         parts = url_path.rsplit('.', 1)

@@ -16,3 +16,5 @@
     * BREAKING CHANGE: Removed --min-resolution option, filtering now uses an
 	  algorithm that takes into account aspect ratio and resolution
     * FEATURE: Added support for Linux systems
+    * BUGFIX: Fix issue where long titles caused filenames to be too long for
+      system to handle
