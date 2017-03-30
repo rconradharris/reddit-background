@@ -174,7 +174,7 @@ class DarwinHandler(OSHandler):
                  .format(num=kwargs['num'], path=path)
         cmd = ['/usr/bin/osascript', '-e', script]
         if subprocess.call(cmd):
-            warn("unable to set background to '{}'".format(path))
+            warn(u"unable to set background to '{}'".format(path))
 
     def get_desktop_resolutions(self):
         p = subprocess.Popen(["/usr/sbin/system_profiler", "SPDisplaysDataType"],
