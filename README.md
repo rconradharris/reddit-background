@@ -163,3 +163,18 @@ Another option is to enable the `desktop_symlinks=True` configuration. This
 will place a symlink on you desktop to your current images. This gives you
 easy access to the image, but more importantly, shows you the title of the
 image.
+
+
+### Image Choosing Algorithms
+
+There are two algorithms included to pick images for you. The first one is
+called 'random', and will select images randomly. This is good if you want the
+most possible variety.
+
+The other algorithm--the default--is called 'bestmatch' and will use Reddit score, aspect
+ratio, resolution, and tiny bit of randomness to select images that will look
+good on your particular desktop.
+
+You can select which algorithm to use in the configuration file like so:
+
+    image_chooser=random

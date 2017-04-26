@@ -43,6 +43,7 @@ DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
 DEFAULT_CONFIG_PATH = u"~/.reddit-background.conf"
 DEFAULT_DOWNLOAD_DIRECTORY = u"~/Reddit Backgrounds"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
+DEFAULT_IMAGE_CHOOSER = 'bestmatch'
 
 # Regexs
 RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
@@ -54,6 +55,7 @@ _DESKTOP_SYMLINK = False
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
+_IMAGE_CHOOSER = None
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
@@ -107,6 +109,15 @@ def set_image_count(image_count):
 
 def get_image_count():
     return _IMAGE_COUNT
+
+
+def set_image_chooser(image_chooser):
+    global _IMAGE_CHOOSER
+    _IMAGE_CHOOSER = image_chooser
+
+
+def get_image_chooser():
+    return _IMAGE_CHOOSER or DEFAULT_IMAGE_CHOOSER
 
 
 def _safe_makedirs(name, mode=0777):
@@ -212,33 +223,21 @@ class LinuxHandler(OSHandler):
         return matches
 
 
-class Desktop(object):
-    def __init__(self, num, width, height, subreddit_tokens=None):
-        self.num = num
-        self.width = width
-        self.height = height
-        self.subreddit_tokens = subreddit_tokens or []
-        # NOTE: we need to get the download-images at instantiation time and
-        # cache the results b/c we'll later clear the download directory
-        # before downloading the new images, meaning we can no longer tell
-        # what's already been downloaded
-        self.downloaded_images = self._get_downloaded_images()
+class ImageChooser(object):
+    def __init__(self, desktop, images):
+        self.desktop = desktop
+        self.images = images
 
-    @property
-    def subreddits(self):
-        return [Subreddit.create_from_token(self, t)
-                for t in self.subreddit_tokens]
+    def sort(self):
+        raise NotImplementedError
 
-    @property
-    def download_directory(self):
-        """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
-        subdir = 'Desktop {}'.format(self.num)
-        return os.path.join(get_download_directory(), subdir)
 
-    def _get_downloaded_images(self):
-        if not os.path.exists(self.download_directory):
-            return []
-        return os.listdir(self.download_directory)
+class RandomImageChooser(ImageChooser):
+    def sort(self):
+        random.shuffle(self.images)
+
+
+class BestMatchImageChooser(ImageChooser):
 
     def _score_reddit_score(self, image, log_lo_score, log_hi_score):
         """Scoring criteria: The higher the Reddit score, the better the
@@ -267,7 +266,7 @@ class Desktop(object):
         1 is an exact match in terms of aspect ratio.
         """
         image_aspect_ratio = float(image.width) / image.height
-        desktop_aspect_ratio = float(self.width) / self.height
+        desktop_aspect_ratio = float(self.desktop.width) / self.desktop.height
 
         if image_aspect_ratio > desktop_aspect_ratio:
             score = desktop_aspect_ratio / image_aspect_ratio
@@ -288,7 +287,7 @@ class Desktop(object):
         1 best resolution
         """
         image_pixels = image.width * image.height
-        desktop_pixels = self.width * self.height
+        desktop_pixels = self.desktop.width * self.desktop.height
 
         if image_pixels > desktop_pixels:
             score = 1.0
@@ -305,7 +304,7 @@ class Desktop(object):
         log(u"jitter score={:.2f}".format(score), level=3)
         return score
 
-    def _choose_images(self):
+    def sort(self):
         """
         Image Choosing Algorithm
 
@@ -329,22 +328,12 @@ class Desktop(object):
 
         The best images should go last because we treat this like a stack.
         """
-        # Accumulate images across subreddits
-        lo_reddit_score = 0.0
-        hi_reddit_score = 0.0
-        images = []
-        for subreddit in self.subreddits:
-            for image in subreddit.fetch_images():
-                if image.raw_reddit_score < lo_reddit_score:
-                    lo_reddit_score = image.raw_reddit_score
-                if image.raw_reddit_score > hi_reddit_score:
-                    hi_reddit_score = image.raw_reddit_score
-                images.append(image)
-
-        log_lo_score = math.log1p(lo_reddit_score)
-        log_hi_score = math.log1p(hi_reddit_score)
-
+        images = self.images
         log('Total candidate images: {}'.format(len(images)))
+
+        raw_reddit_scores = [i.raw_reddit_score for i in images]
+        log_lo_score = math.log1p(min(raw_reddit_scores))
+        log_hi_score = math.log1p(max(raw_reddit_scores))
 
         # Score each image based on our criteria and their associated weight
         for image in images:
@@ -389,10 +378,50 @@ class Desktop(object):
                     image.display_title),
                 level=2)
 
-        return images
+
+_IMAGE_CHOOSER_CLASSES = {
+    'random': RandomImageChooser,
+    'bestmatch': BestMatchImageChooser,
+}
+
+
+class Desktop(object):
+    def __init__(self, num, width, height, subreddit_tokens=None):
+        self.num = num
+        self.width = width
+        self.height = height
+        self.subreddit_tokens = subreddit_tokens or []
+        # NOTE: we need to get the download-images at instantiation time and
+        # cache the results b/c we'll later clear the download directory
+        # before downloading the new images, meaning we can no longer tell
+        # what's already been downloaded
+        self.downloaded_images = self._get_downloaded_images()
+
+    @property
+    def subreddits(self):
+        return [Subreddit.create_from_token(self, t)
+                for t in self.subreddit_tokens]
+
+    @property
+    def download_directory(self):
+        """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
+        subdir = 'Desktop {}'.format(self.num)
+        return os.path.join(get_download_directory(), subdir)
+
+    def _get_downloaded_images(self):
+        if not os.path.exists(self.download_directory):
+            return []
+        return os.listdir(self.download_directory)
 
     def fetch_backgrounds(self, image_count):
-        images = self._choose_images()
+        images = []
+        for subreddit in self.subreddits:
+            for image in subreddit.fetch_images():
+                images.append(image)
+
+        chooser_cls = _IMAGE_CHOOSER_CLASSES[get_image_chooser()]
+        chooser = chooser_cls(self, images)
+        chooser.sort()
 
         log(u'Number of images to download: {0}'.format(image_count))
         paths = []
@@ -660,6 +689,13 @@ def _read_config_file(desktops):
         else:
             if download_directory:
                 set_download_directory(download_directory)
+        try:
+            image_chooser = config.get('default', 'image_chooser')
+        except ConfigParser.NoOptionError:
+            pass
+        else:
+            if image_chooser:
+                set_image_chooser(image_chooser)
 
 
 def _handle_cli_options(desktops):
