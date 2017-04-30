@@ -1,19 +1,19 @@
 reddit-background
 =================
 
-Set your Mac OS X or Linux desktop background to images pulled from [Reddit](https://reddit.com)
+Set your macOS or Linux desktop background to images pulled from [Reddit](https://reddit.com)
 
 ![Screenshot](https://raw.githubusercontent.com/rconradharris/reddit-background/master/screenshot.jpg)
 
 Features
 --------
 
-- Supports multiple monitors (Mac OS X only)
+- Supports multiple monitors (macOS only)
 - Handles multiple subreddits
-- Aspect ratio and resolution filtering ensures your backgrounds are always beautiful
+- Aspect ratio and resolution filtering ensure your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads
 - Can pick images that match the current season
-- Download only option (`--image-count`) if you want to use OS X's existing
+- Download only option (`--image-count`) if you want to use macOS' existing
   folder-based background selector
 
 Try It
@@ -44,7 +44,7 @@ The easiest way to install reddit-background is to copy it to
 Configure It
 ------------
 
-If you'd like to customize reddit-background so that it chooses images images
+If you'd like to customize reddit-background so that it chooses images 
 from different subreddits, you can provide a configuration file at
 `~/.reddit-background.conf`. Samples configuration files are provided in the
 [examples](https://github.com/rconradharris/reddit-background/tree/master/examples)
@@ -139,10 +139,10 @@ This will set the background on desktop 1 to one of the 5 hottest posts from
 By default reddit-background will download a single image per desktop and set
 that to your desktop's background.
 
-In addition, you can use OS X's native folder-based background selector which
+In addition, you can use macOS' native folder-based background selector which
 offers additional features.
 
-To use OS X's background selector, you tell `reddit-background` to download a
+To use macOS' background selector, you tell `reddit-background` to download a
 set number of images using the `--image-count` option. This will download these
 images into the download directory but not actually set them as the
 background. You then set `System Preferences -> Desktop -> Backgrounds` to
