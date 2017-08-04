@@ -250,10 +250,13 @@ class BestMatchImageChooser(ImageChooser):
         0 < score <= 1
         """
         log_score = math.log1p(image.raw_reddit_score)
-        assert log_lo_score <= log_score <= log_hi_score, \
-                u"lo={} score={} hi={}".format(
-                    log_lo_score, log_score, log_hi_score)
-        score = float(log_score - log_lo_score) / (log_hi_score - log_lo_score)
+        if log_hi_score > log_lo_score:
+            score = float(log_score - log_lo_score) / (log_hi_score - log_lo_score)
+        elif log_hi_score == log_lo_score:
+            # Avoid division by zero
+            score = 0.0
+        else:
+            raise AssertionError("log_hi_score shouldn't exceed log_lo_score")
         log(u"reddit_score={:.2f} score={:.2f}".format(
             image.reddit_score, score), level=3)
         return score
