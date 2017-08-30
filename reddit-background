@@ -67,7 +67,7 @@ _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
 _IMAGE_CHOOSER = None
-_FIT_IMAGES = False
+_IMAGE_SCALING = None
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
@@ -131,13 +131,13 @@ def get_image_chooser():
     return _IMAGE_CHOOSER or DEFAULT_IMAGE_CHOOSER
 
 
-def set_fit_images(fit_images):
-    global _FIT_IMAGES
-    _FIT_IMAGES = fit_images
+def set_image_scaling(image_scaling):
+    global _IMAGE_SCALING
+    _IMAGE_SCALING = image_scaling
 
 
-def get_fit_images():
-    return _FIT_IMAGES
+def get_image_scaling():
+    return _IMAGE_SCALING
 
 
 def _safe_makedirs(name, mode=0777):
@@ -525,7 +525,7 @@ class Desktop(object):
                 continue  # Try next image...
             else:
                 paths.append(path)
-                if get_fit_images():
+                if get_image_scaling() == 'fit':
                     image.fit_to_desktop(self)
                 if self.imprint_conf.position_tokens:
                     image.imprint_title(self)
@@ -897,7 +897,7 @@ def _read_config_file(desktops):
             if image_chooser:
                 set_image_chooser(image_chooser)
         try:
-            set_fit_images(config.getboolean('default', 'fit_images'))
+            set_image_scaling(config.get('default', 'image_scaling'))
         except ConfigParser.NoOptionError:
             pass
 

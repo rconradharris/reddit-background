@@ -151,7 +151,7 @@ background. You then set `System Preferences -> Desktop -> Backgrounds` to
 point to the download directory for each desktop.
 
 
-### Scale to Desktop Size
+### Image Scaling
 
 By default, images are downloaded in their original resolution.  When the "fit" option is set, reddit-background fits the image to your screen
 resolution by adding black bars where needed.  
@@ -165,8 +165,9 @@ This option can be set as a default for all desktops or can be set individually 
 configuration enables fitting for all downloaded images:
 
     [default]
-    fit_images = True
+    image_scaling=fit
     
+Currently, `fit` is the only scaling option available.
     
 ### Show Title of Image
 
@@ -186,7 +187,7 @@ image.
 
 Third, you can imprint the title directly on the image itself.  This option
 requires that you load additional modules into Python.  This option works
-best when paired with `fit_images=True`.
+best when paired with `image_scaling=fit`.
 
 #### Prerequisites for Imprinting Titles
 
@@ -238,7 +239,7 @@ Example 1: the following configuration places the title at the bottom-left corne
 uses the defaults for font and size:
 
     [default]
-    fit_images=True
+    image_scaling=fit
     imprint_position=bottom left
 
 Example 2: the following configuration centers the title 200 pixels from the top of the image.  It won't
@@ -246,7 +247,7 @@ wrap lines because the box width is set so large.  The zero transparency makes t
 invisible. A custom font, size, and color are set.
 
     [default]
-    fit_images=True
+    image_scaling=fit
     imprint_position=top center
     imprint_size=2000:200:10:0
     imprint_font=Perpetual Bold:20:#3CB371
@@ -256,7 +257,7 @@ is relative to the image itself and not to your desktop.
 In other words, a placement of "top left" means the top-left corner of the **image**.  
 If your desktop cuts off the top of your image (in order to cover the entire desktop), 
 the title box will not be visible.  The solution is to always 
-set `fit_images=True` to ensure images are fit to your desktop size before imprinting is
+set `image_scaling=fit` to ensure images are fit to your desktop size before imprinting is
 done.
 
 Note that font filenames are not always the same as the displayed name in OS dialog boxes.
