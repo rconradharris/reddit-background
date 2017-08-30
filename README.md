@@ -12,6 +12,7 @@ Features
 - Handles multiple subreddits
 - Aspect ratio and resolution filtering ensures your backgrounds are always beautiful
 - Flexible sorting lets you choose the quality of images it downloads
+- Optionally imprints the title on each image
 - Can pick images that match the current season
 - Download only option (`--image-count`) if you want to use OS X's existing
   folder-based background selector
@@ -115,6 +116,7 @@ Currently the only one included is `{seasonal}` which will choose from amongst
 [/r/AutumnPorn](https://reddit.com/r/AutumnPorn) based on the current season
 (in the northern hemisphere).
 
+
 ### Command-Line Usage
 
 In addition to specifying a configuration file, you can also customize
@@ -148,22 +150,130 @@ images into the download directory but not actually set them as the
 background. You then set `System Preferences -> Desktop -> Backgrounds` to
 point to the download directory for each desktop.
 
-### Show title of image
+
+### Scale to Desktop Size
+
+By default, images are downloaded in their original resolution.  When the "fit" option is set, reddit-background fits the image to your screen
+resolution by adding black bars where needed.  
+
+While your OS likely has this option already, using this configuration option makes sense when
+paired with the "Imprint Title" option.  By scaling the image first and then imprinting the title, 
+you get a consistent font size as well as a guarantee the imprint will be on the screen (and not 
+scaled off one side or the other).
+
+This option can be set as a default for all desktops or can be set individually per desktop.  The following
+configuration enables fitting for all downloaded images:
+
+    [default]
+    fit_images = True
+    
+    
+### Show Title of Image
 
 If you'd like to know the title of the background you're looking at, you have
-two different options.
+three different options.
 
-On the command-line you can run:
+First, on the command-line you can run:
 
     reddit-background --what
     Desktop 1
         Perth, Western Australia, from Elizabeth Quay [5376x3024].jpg
 
-Another option is to enable the `desktop_symlinks=True` configuration. This
+Second, you can enable the `desktop_symlinks=True` configuration. This
 will place a symlink on you desktop to your current images. This gives you
 easy access to the image, but more importantly, shows you the title of the
 image.
 
+Third, you can imprint the title directly on the image itself.  This option
+requires that you load additional modules into Python.  This option works
+best when paired with `fit_images=True`.
+
+Prerequisites for Imprinting Titles
+-----------------------------------
+
+Imprinting requires the Python Imaging Library.  We suggest installing the 
+[Pillow](https://python-pillow.org/) fork of this library.  The directions below
+are a quick guide.  Full documentation is available on the pillow site.
+
+Windows users can download an installable binary from the pillow site.
+
+Mac and Linux users should ensure they have `freetype` and `libjpeg` installed
+**before** installing `pillow`.  Linux likely has these already, and Mac
+users can add them with:
+
+    brew install freetype libjpeg
+    
+Once you have these dependencies are available on your system, install
+pillow with one of the following commands:
+
+    pip install Pillow
+    # or
+    easy_install Pillow
+
+Imprinting Configuration
+------------------------
+
+Configuration can be done globally in the `[default]` section or per desktop.
+If you specify desktop sections, the default section is entirely ignored.
+The options are as follows:
+
+    imprint_position=<horizontal> <vertical>
+    imprint_size=[box width]:[margin]:[padding]:[transparency]
+    imprint_font=[font filename]:[font size]:[font color]
+
+The first option, `imprint_position`, is required and is what activates 
+imprinting.  The others are optional.
+
+| Argument      | Possible Values                                          | Default |
+|---------------|----------------------------------------------------------|---------|
+| horizontal    | top, center, bottom                                      | center  |
+| vertical      | left, center, right                                      | center  |
+| box width     | number of pixels before line wrap                        | 500     |
+| margin        | number of pixels from the edge of image                  | 50      |
+| padding       | number of pixels inside of text box                      | 8       |
+| transparency  | number from 0 to 100 for percent transparency (text box) | 40      |
+| font filename | filename of TrueType font on your system to use          | Arial   |
+| font size     | font size                                                | 50      |
+| font color    | hex code: #112233, or RGB triple: (255, 128, 75)         | #E8BC61 |
+
+Example 1: the following configuration places the title at the bottom-left corner of the image. It
+uses the defaults for font and size:
+
+    fit_images=True
+    imprint_position=bottom left
+
+Example 2: the following ocnfiguration centers the title 200 pixels from the top of the image.  It won't
+wrap lines because the box width is set so large.  The zero transparency makes the box background
+invisible. A custom font, size, and color are set.
+
+    imprint_position=top center
+    imprint_size=2000:200:10:0
+    imprint_font=Perpetual Bold:20:#3CB371
+
+Since the program cannot know how your OS will scale the image, placement 
+is relative to the image itself and not to your desktop.
+In other words, a placement of "top left" means the top-left corner of the **image**.  
+If your desktop cuts off the top of your image (in order to cover the entire desktop), 
+the title box will not be visible.  The solution is to always 
+set `fit_images=True` to ensure images are fit to your desktop size before imprinting is
+done.
+
+Note that font filenames are not always the same as the displayed name in OS dialog boxes.
+For example, the filename for "American Typewriter" on my machine is "AmericanTypewriter.ttf"
+(without a space).  The extension can be omitted, and only TrueType fonts are supported.
+
+Transparency affects the text box background only (not the title text). This semi-transparent
+box is added behind the title because no color is appropriate across all images.  If you 
+use a white font, some images will have white pixels in the title area.  If you instead use
+a black font, other images will have black pixels in the same area.  The box allows 
+your desired color to be read regardless of the image colors beneath the title.
+
+Imprinting with Command-Line Options
+------------------------------------
+
+Options can be specified on the command line, as in the following example:
+
+    reddit-background --imprint-position="top right" --imprint-size=1000:500:100:70 --imprint-font="Arial:50:#888888"
 
 ### Image Choosing Algorithms
 

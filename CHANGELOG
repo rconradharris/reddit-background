@@ -18,3 +18,11 @@
     * FEATURE: Added support for Linux systems
     * BUGFIX: Fix issue where long titles caused filenames to be too long for
       system to handle
+
+2.1beta (changes by doconix@gmail.com, tested on OS X Sierra)
+    * FEATURE: Added image fitting to desktop resolution. PIL (pillow) is used 
+      for image manipulation but fails nicely when not installed on the machine.
+    * FEATURE: Added title imprinting.  This included new options, config parsing, 
+      another example config, new sections in the README, etc.  
+      
+     
