@@ -237,13 +237,16 @@ imprinting.  The others are optional.
 Example 1: the following configuration places the title at the bottom-left corner of the image. It
 uses the defaults for font and size:
 
+    [default]
     fit_images=True
     imprint_position=bottom left
 
-Example 2: the following ocnfiguration centers the title 200 pixels from the top of the image.  It won't
+Example 2: the following configuration centers the title 200 pixels from the top of the image.  It won't
 wrap lines because the box width is set so large.  The zero transparency makes the box background
 invisible. A custom font, size, and color are set.
 
+    [default]
+    fit_images=True
     imprint_position=top center
     imprint_size=2000:200:10:0
     imprint_font=Perpetual Bold:20:#3CB371
