@@ -188,8 +188,7 @@ Third, you can imprint the title directly on the image itself.  This option
 requires that you load additional modules into Python.  This option works
 best when paired with `fit_images=True`.
 
-Prerequisites for Imprinting Titles
------------------------------------
+#### Prerequisites for Imprinting Titles
 
 Imprinting requires the Python Imaging Library.  We suggest installing the 
 [Pillow](https://python-pillow.org/) fork of this library.  The directions below
@@ -210,8 +209,7 @@ pillow with one of the following commands:
     # or
     easy_install Pillow
 
-Imprinting Configuration
-------------------------
+#### Imprinting Configuration
 
 Configuration can be done globally in the `[default]` section or per desktop.
 If you specify desktop sections, the default section is entirely ignored.
@@ -268,8 +266,7 @@ use a white font, some images will have white pixels in the title area.  If you 
 a black font, other images will have black pixels in the same area.  The box allows 
 your desired color to be read regardless of the image colors beneath the title.
 
-Imprinting with Command-Line Options
-------------------------------------
+#### Imprinting with Command-Line Options
 
 Options can be specified on the command line, as in the following example:
 
