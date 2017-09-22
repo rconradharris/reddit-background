@@ -657,12 +657,16 @@ class Image(object):
         except IndexError:
             pass
         return filename
-        
-    def fit_to_desktop(self, desktop):
+
+    def _ensure_pil_available(option):
         if not pil_available:
-            raise ImportError(u"Cannot fit image to desktop size because the python"
-                    u" imaging library is not available.  Please install `pillow` or"
-                    u" remove the fit option from your config.")
+            raise ImportError(u"Cannot imprint title on image because the"
+                              u" python imaging library is not available."
+                              u" Please install `pillow` or remove the '%s'"
+                              u" option from your config." % option)
+
+    def fit_to_desktop(self, desktop):
+        _ensure_pil_available('fit')
         img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
         image_ratio = float(img.width) / float(img.height)
         desktop_ratio = float(desktop.width) / float(desktop.height)
@@ -716,10 +720,7 @@ class Image(object):
         return font
 
     def imprint_title(self, desktop):
-        if not pil_available:
-            raise ImportError(u"Cannot imprint title on image because the python imaging"
-                    u" library is not available.  Please install `pillow` or remove the"
-                    u" fit option from your config.")
+        _ensure_pil_available('imprint_position')
 
         if not self.full_title:
             return
