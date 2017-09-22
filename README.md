@@ -216,7 +216,7 @@ Configuration can be done globally in the `[default]` section or per desktop.
 If you specify desktop sections, the default section is entirely ignored.
 The options are as follows:
 
-    imprint_position=<horizontal> <vertical>
+    imprint_position=<horizontal>:<vertical>
     imprint_size=[box width]:[margin]:[padding]:[transparency]
     imprint_font=[font filename]:[font size]:[font color]
 
@@ -240,7 +240,7 @@ uses the defaults for font and size:
 
     [default]
     image_scaling=fit
-    imprint_position=bottom left
+    imprint_position=bottom:left
 
 Example 2: the following configuration centers the title 200 pixels from the top of the image.  It won't
 wrap lines because the box width is set so large.  The zero transparency makes the box background
@@ -248,7 +248,7 @@ invisible. A custom font, size, and color are set.
 
     [default]
     image_scaling=fit
-    imprint_position=top center
+    imprint_position=top:center
     imprint_size=2000:200:10:0
     imprint_font=Perpetual Bold:20:#3CB371
 
@@ -274,7 +274,7 @@ your desired color to be read regardless of the image colors beneath the title.
 
 Options can be specified on the command line, as in the following example:
 
-    reddit-background --imprint-position="top right" --imprint-size=1000:500:100:70 --imprint-font="Arial:50:#888888"
+    reddit-background --imprint-position="top:right" --imprint-size=1000:500:100:70 --imprint-font="Arial:50:#888888"
 
 ### Image Choosing Algorithms
 

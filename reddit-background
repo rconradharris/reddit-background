@@ -657,7 +657,7 @@ class Image(object):
             pass
         return filename
 
-    def _ensure_pil_available(option):
+    def _ensure_pil_available(self, option):
         if not pil_available:
             raise ImportError(u"Cannot imprint title on image because the"
                               u" python imaging library is not available."
@@ -665,7 +665,7 @@ class Image(object):
                               u" option from your config." % option)
 
     def fit_to_desktop(self, desktop):
-        _ensure_pil_available('fit')
+        self._ensure_pil_available('fit')
         img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
         image_ratio = float(img.width) / float(img.height)
         desktop_ratio = float(desktop.width) / float(desktop.height)
@@ -719,7 +719,7 @@ class Image(object):
         return font
 
     def imprint_title(self, desktop):
-        _ensure_pil_available('imprint_position')
+        self._ensure_pil_available('imprint_position')
 
         if not self.full_title:
             return
@@ -957,7 +957,7 @@ def _handle_cli_options(desktops):
             help='display what images are downloaded for each desktop')
     parser.add_argument('--imprint-position',
             help='imprint the title in images at this position. horizontal'
-                 ' vertical (ex: bottom left)')
+                 ' vertical (ex: bottom:left)')
     parser.add_argument('--imprint-size',
             help='box options for title imprinting.'
                  ' width:margin:padding:transparency')
@@ -991,7 +991,7 @@ def _handle_cli_options(desktops):
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
         if args.imprint_position:
-            desktop.imprint_conf.set_position_tokens(args.imprint_position.split(' '))
+            desktop.imprint_conf.set_position_tokens(args.imprint_position.split(':'))
         if args.imprint_size:
             desktop.imprint_conf.set_size_tokens(args.imprint_size.split(':'))
         if args.imprint_font:
