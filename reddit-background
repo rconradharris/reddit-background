@@ -702,33 +702,44 @@ class Image(object):
                 lines.append(u' '.join(curparts))
         return lines
 
+    def _get_imprint_font(self, desktop, default='Arial'):
+        conf = desktop.imprint_conf
+        try:
+            font = pilImageFont.truetype(conf.font_filename, conf.font_size)
+        except IOError:
+            warn(u"Cannot open font file `%s`.  This must be specified as the"
+                 u" font filename, not the font name fromn system dialogs"
+                 u" (although the two are often the same). Trying `%s.ttf`"
+                 u" instead." % conf.font_filename)
+            font = pilImageFont.truetype(default, conf.font_size)
+        return font
+
     def imprint_title(self, desktop):
         if not pil_available:
             raise ImportError(u"Cannot imprint title on image because the python imaging"
                     u" library is not available.  Please install `pillow` or remove the"
                     u" fit option from your config.")
+
         if not self.full_title:
             return
+
         if self.img is None:
             self.img = pilImage.open(os.path.join(desktop.download_directory, 
                 self.filename))
-        conf = desktop.imprint_conf
-        try:
-            font = pilImageFont.truetype(conf.font_filename, conf.font_size)
-        except IOError:
-            warn(u"Cannot open font file `%s`.  This must be specified as the font"
-                 u" filename, not the font name fromn system dialogs (although the two are"
-                 u" often the same). Trying `Arial.ttf` instead." % conf.font_filename)
-            font = pilImageFont.truetype('Arial', conf.font_size)
+
+        font = self._get_imprint_font(desktop)
+
         self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
 
         draw = pilImageDraw.ImageDraw(self.img)
         lineheight = draw.textsize(self.title, font=font)[1]
+
+        conf = desktop.imprint_conf
         maxwidth = conf.box_width
 
         lines = self._wrap_text(draw, self.full_title, maxwidth, font)
 
-        # calculate the x and y
+        # Calculate the x and y
         for line in lines:
             maxwidth = max(maxwidth, draw.textsize(line, font=font)[0])
         maxheight = len(lines) * lineheight 
@@ -745,8 +756,8 @@ class Image(object):
         else:                            
             y = max(conf.margin, (self.img.height - maxheight) / 2)
 
-        # draw the background box with transparent color, 
-        # then composite with the original image
+        # Draw the background box with transparent color, then composite with
+        # the original image
         canvas = pilImage.new('RGBA', self.img.size)
         draw = pilImageDraw.ImageDraw(canvas)
         draw.rectangle((x - conf.padding, y - conf.padding, 
@@ -763,11 +774,10 @@ class Image(object):
             draw.text((x, y), line, font=font, fill=fill)
             y += lineheight
 
-        # save the image
+        # Save the image
         self.img = self.img.convert('RGB')
         self.img.save(os.path.join(desktop.download_directory, self.filename), 
             "JPEG", quality=85)
-        
         
 
 class Subreddit(object):
