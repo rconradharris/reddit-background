@@ -725,7 +725,6 @@ class Image(object):
         draw = pilImageDraw.ImageDraw(self.img)
         lineheight = draw.textsize(self.title, font=font)[1]
         maxwidth = conf.box_width
-        color = pilImageColor.getrgb(conf.font_color)
 
         lines = self._wrap_text(draw, self.full_title, maxwidth, font)
 
@@ -745,6 +744,7 @@ class Image(object):
             y = max(conf.margin, self.img.height - maxheight - conf.margin)
         else:                            
             y = max(conf.margin, (self.img.height - maxheight) / 2)
+
         # draw the background box with transparent color, 
         # then composite with the original image
         canvas = pilImage.new('RGBA', self.img.size)
@@ -753,12 +753,16 @@ class Image(object):
             x + maxwidth + conf.padding, y + maxheight + conf.padding), 
             fill=(0, 0, 0, int(255 * conf.transparency / 100.0)))
         self.img = pilImage.alpha_composite(self.img.convert('RGBA'), canvas)
-        # draw the text
+
+        # Draw the text
         draw = pilImageDraw.ImageDraw(self.img)
+        fill = pilImageColor.getrgb(conf.font_color)
+        if len(fill) != 3:
+            fill = (255, 229, 204)
         for line in lines:
-            draw.text((x, y), line, font=font, 
-                fill=color if len(color) == 3 else (255,229,204))
+            draw.text((x, y), line, font=font, fill=fill)
             y += lineheight
+
         # save the image
         self.img = self.img.convert('RGB')
         self.img.save(os.path.join(desktop.download_directory, self.filename), 
