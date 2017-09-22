@@ -36,7 +36,14 @@ import sys
 import urllib2
 import urlparse
 
-__version__ = '2.0beta'
+# since PIL is not in the standard library, using a try so it isn't necessary for the script
+try:
+    from PIL import Image as pilImage, ImageColor as pilImageColor, ImageDraw as pilImageDraw, ImageFont as pilImageFont
+    pil_available = True
+except ImportError:
+    pil_available = False
+
+__version__ = '2.1beta'
 
 # Defaults
 DEFAULT_SUBREDDIT_TOKENS = ['{seasonal}']
@@ -44,9 +51,13 @@ DEFAULT_CONFIG_PATH = u"~/.reddit-background.conf"
 DEFAULT_DOWNLOAD_DIRECTORY = u"~/Reddit Backgrounds"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
 DEFAULT_IMAGE_CHOOSER = 'bestmatch'
+DEFAULT_IMPRINT_POSITION_TOKENS = []
+DEFAULT_IMPRINT_SIZE_TOKENS = [500, 50, 8, 40]
+DEFAULT_IMPRINT_FONT_TOKENS = ['Arial', 50, '#E8BC61']
 
 # Regexs
 RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")
+RE_TITLE_TAGS = re.compile('\[[^]]*]', flags=re.DOTALL)
 
 # Globals
 _VERBOSITY = 0
@@ -56,13 +67,13 @@ _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
 _IMAGE_CHOOSER = None
+_IMAGE_SCALING = None
 
 # Consts
 WEIGHT_ASPECT_RATIO = 1.0
 WEIGHT_RESOLUTION = 1.0
 WEIGHT_JITTER = 0.25
 WEIGHT_REDDIT_SCORE = 1.0
-
 
 def set_verbosity(verbosity):
     global _VERBOSITY
@@ -118,6 +129,15 @@ def set_image_chooser(image_chooser):
 
 def get_image_chooser():
     return _IMAGE_CHOOSER or DEFAULT_IMAGE_CHOOSER
+
+
+def set_image_scaling(image_scaling):
+    global _IMAGE_SCALING
+    _IMAGE_SCALING = image_scaling
+
+
+def get_image_scaling():
+    return _IMAGE_SCALING
 
 
 def _safe_makedirs(name, mode=0777):
@@ -388,12 +408,67 @@ _IMAGE_CHOOSER_CLASSES = {
 }
 
 
+class ImprintConf(object):
+    def __init__(self):
+        self.set_position_tokens(None)
+        self.set_size_tokens(None)
+        self.set_font_tokens(None)
+
+    def _parse_token(self, tokens, default_tokens, pos, conv, errormsg):
+        if tokens is None or len(tokens) <= pos:
+            tokens = default_tokens
+        val = tokens[pos]
+        if conv is not None:
+            try:
+                val = conv(val)
+            except:
+                self.warn(errormsg % val)
+                return default_tokens[pos]
+        return val
+
+    def set_position_tokens(self, tokens):
+        tokens = tokens or []
+        self.position_tokens = []
+        for token in tokens:
+            self.position_tokens.extend(token.split() if token else [])
+        
+    def set_size_tokens(self, tokens):
+        self.box_width = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
+            0, int, 'Invalid box width specified for title imprint: %s')
+        self.margin = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
+            1, int, 'Invalid box margin specified for title imprint: %s')
+        self.padding = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
+            2, int, 'Invalid box padding specified for title imprint: %s')
+        self.transparency = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
+            3, int, 'Invalid box transparency specified for title imprint: %s')
+        self.transparency = max(0, min(100, self.transparency))
+        
+    def set_font_tokens(self, tokens):
+        self.font_filename = self._parse_token(tokens, DEFAULT_IMPRINT_FONT_TOKENS,
+            0, None, None)
+        self.font_size = self._parse_token(tokens, DEFAULT_IMPRINT_FONT_TOKENS,
+            1, int, 'Invalid font specified for title imprint: %s')
+        self.font_color = self._parse_token(tokens, DEFAULT_IMPRINT_FONT_TOKENS,
+            2, None, None)
+            
+    def __str__(self):
+        '''For debugging'''
+        ret = []
+        for name in ('position_tokens', 'box_width', 'margin',
+            'padding', 'transparency', 'font_filename', 'font_size',
+            'font_color'):
+            ret.append('%s:%s' % (name, getattr(self, name)))
+        return '\n'.join(ret)
+
+
 class Desktop(object):
     def __init__(self, num, width, height, subreddit_tokens=None):
         self.num = num
         self.width = width
         self.height = height
         self.subreddit_tokens = subreddit_tokens or []
+        self.imprint_conf = ImprintConf()
+        
         # NOTE: we need to get the download-images at instantiation time and
         # cache the results b/c we'll later clear the download directory
         # before downloading the new images, meaning we can no longer tell
@@ -404,7 +479,7 @@ class Desktop(object):
     def subreddits(self):
         return [Subreddit.create_from_token(self, t)
                 for t in self.subreddit_tokens]
-
+                
     @property
     def download_directory(self):
         """Images are stored in ~/Reddit Backgrounds/Desktop 1"""
@@ -450,6 +525,10 @@ class Desktop(object):
                 continue  # Try next image...
             else:
                 paths.append(path)
+                if get_image_scaling() == 'fit':
+                    image.fit_to_desktop(self)
+                if self.imprint_conf.position_tokens:
+                    image.imprint_title(self)
 
         return paths
 
@@ -553,6 +632,7 @@ class Image(object):
         self.resolution_score = resolution_score
         self.jitter_score = jitter_score
         self.reddit_score = reddit_score
+        self.img = None  # cached image data so we don't load/save/reload/resave jpegs
 
     @property
     def display_title(self):
@@ -560,6 +640,10 @@ class Image(object):
             return self.title
         else:
             return self.title[:self.TITLE_MAX_LENGTH - 3] + u'...'
+            
+    @property
+    def full_title(self):
+        return RE_TITLE_TAGS.sub('', self.title)
 
     @property
     def filename(self):
@@ -574,7 +658,104 @@ class Image(object):
         except IndexError:
             pass
         return filename
+        
+    def fit_to_desktop(self, desktop):
+        if not pil_available:
+            raise ImportError(u"Cannot fit image to desktop size because the python"
+                    u" imaging library is not available.  Please install `pillow` or"
+                    u" remove the fit option from your config.")
+        if self.img is None:
+            self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
+        image_ratio = float(self.img.width) / float(self.img.height)
+        desktop_ratio = float(desktop.width) / float(desktop.height)
+        if image_ratio < desktop_ratio:
+            self.img = self.img.resize((int(desktop.height * image_ratio), desktop.height))
+        else:
+            self.img = self.img.resize((desktop.width, int(desktop.width / image_ratio)))
+        canvas = pilImage.new('RGB', (desktop.width, desktop.height), (0, 0, 0))
+        canvas.paste(self.img, (max(0, int((desktop.width - self.img.width) / 2.0)), 
+            max(0, int((desktop.height - self.img.height) / 2.0))))
+        self.img = canvas
+        self.img.save(os.path.join(desktop.download_directory, self.filename), 
+            "JPEG", quality=85)
+        self.width = self.img.width
+        self.height = self.img.height
 
+    def imprint_title(self, desktop):
+        if not pil_available:
+            raise ImportError(u"Cannot imprint title on image because the python imaging"
+                    u" library is not available.  Please install `pillow` or remove the"
+                    u" fit option from your config.")
+        if not self.full_title:
+            return
+        if self.img is None:
+            self.img = pilImage.open(os.path.join(desktop.download_directory, 
+                self.filename))
+        conf = desktop.imprint_conf
+        try:
+            font = pilImageFont.truetype(conf.font_filename, conf.font_size)
+        except IOError:
+            warn(u"Cannot open font file `%s`.  This must be specified as the font"
+                 u" filename, not the font name fromn system dialogs (although the two are"
+                 u" often the same). Trying `Arial.ttf` instead." % conf.font_filename)
+            font = pilImageFont.truetype('Arial', conf.font_size)
+        self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
+        draw = pilImageDraw.ImageDraw(self.img)
+        lineheight = draw.textsize(self.title, font=font)[1]
+        maxwidth = conf.box_width
+        color = pilImageColor.getrgb(conf.font_color)
+        # split the title into lines that are less than maxwidth
+        lines = []
+        for title in self.full_title.splitlines():
+            start = 0
+            curparts = []
+            for part in ( t for t in title.split() if t ):
+                curparts.append(part)
+                if draw.textsize(u' '.join(curparts), font=font)[0] > maxwidth:
+                    if len(curparts) == 1:
+                        lines.append(u' '.join(curparts))
+                        curparts = []
+                    else:  
+                        lines.append(u' '.join(curparts[:-1]))
+                        curparts = [ curparts[-1] ]
+            if len(curparts) > 0:
+                lines.append(u' '.join(curparts))
+        # calculate the x and y
+        for line in lines:
+            maxwidth = max(maxwidth, draw.textsize(line, font=font)[0])
+        maxheight = len(lines) * lineheight 
+        if 'left' in conf.position_tokens:
+            x = conf.margin
+        elif 'right' in conf.position_tokens:        
+            x = max(conf.margin, self.img.width - maxwidth - conf.margin)
+        else:                            
+            x = max(conf.margin, (self.img.width - maxwidth) / 2) 
+        if 'top' in conf.position_tokens:            
+            y = conf.margin
+        elif 'bottom' in conf.position_tokens:       
+            y = max(conf.margin, self.img.height - maxheight - conf.margin)
+        else:                            
+            y = max(conf.margin, (self.img.height - maxheight) / 2)
+        # draw the background box with transparent color, 
+        # then composite with the original image
+        canvas = pilImage.new('RGBA', self.img.size)
+        draw = pilImageDraw.ImageDraw(canvas)
+        draw.rectangle((x - conf.padding, y - conf.padding, 
+            x + maxwidth + conf.padding, y + maxheight + conf.padding), 
+            fill=(0, 0, 0, int(255 * conf.transparency / 100.0)))
+        self.img = pilImage.alpha_composite(self.img.convert('RGBA'), canvas)
+        # draw the text
+        draw = pilImageDraw.ImageDraw(self.img)
+        for line in lines:
+            draw.text((x, y), line, font=font, 
+                fill=color if len(color) == 3 else (255,229,204))
+            y += lineheight
+        # save the image
+        self.img = self.img.convert('RGB')
+        self.img.save(os.path.join(desktop.download_directory, self.filename), 
+            "JPEG", quality=85)
+        
+        
 
 class Subreddit(object):
     def __init__(self, desktop, name, sort='top', limit=25, timeframe='month'):
@@ -666,6 +847,21 @@ def _read_config_file(desktops):
             if tokens:
                 desktop.subreddit_tokens = tokens
 
+    def parse_imprint_tokens(desktop, section):
+        for confname, funcname in ( 
+            ( 'imprint_position', 'set_position_tokens' ),
+            ( 'imprint_size',     'set_size_tokens'     ), 
+            ( 'imprint_font',     'set_font_tokens'     ),
+        ):
+            try:
+                tokens = map(lambda x: x.strip(),
+                             config.get(section, confname).split(':'))
+            except ConfigParser.NoOptionError:
+                pass
+            else:
+                if tokens:
+                    getattr(desktop.imprint_conf, funcname)(tokens)
+
     config = ConfigParser.ConfigParser()
     with open(path) as f:
         config.readfp(f)
@@ -675,6 +871,7 @@ def _read_config_file(desktops):
         if section not in config.sections():
             section = 'default'
         parse_subreddit_tokens(desktop, section)
+        parse_imprint_tokens(desktop, section)
 
     if 'default' in config.sections():
         try:
@@ -699,6 +896,10 @@ def _read_config_file(desktops):
         else:
             if image_chooser:
                 set_image_chooser(image_chooser)
+        try:
+            set_image_scaling(config.get('default', 'image_scaling'))
+        except ConfigParser.NoOptionError:
+            pass
 
 
 def _handle_cli_options(desktops):
@@ -722,6 +923,15 @@ def _handle_cli_options(desktops):
     parser.add_argument('--what',
             action='store_true',
             help='display what images are downloaded for each desktop')
+    parser.add_argument('--imprint-position',
+            help='imprint the title in images at this position. horizontal'
+                 ' vertical (ex: bottom left)')
+    parser.add_argument('--imprint-size',
+            help='box options for title imprinting.'
+                 ' width:margin:padding:transparency')
+    parser.add_argument('--imprint-font',
+            help='font options for title imprinting.'
+                 ' filename:size:color')
     parser.add_argument('--version',
                         action='version',
                         version=__version__)
@@ -748,6 +958,12 @@ def _handle_cli_options(desktops):
     for desktop in desktops:
         if args.subreddits:
             desktop.subreddit_tokens = args.subreddits
+        if args.imprint_position:
+            desktop.imprint_conf.set_position_tokens(args.imprint_position.split(' '))
+        if args.imprint_size:
+            desktop.imprint_conf.set_size_tokens(args.imprint_size.split(':'))
+        if args.imprint_font:
+            desktop.imprint_conf.set_font_tokens(args.imprint_font.split(':'))
 
 
 def show_whats_downloaded(desktops):
@@ -788,7 +1004,6 @@ def main():
             paths = desktop.fetch_backgrounds(1)
             if paths:
                 desktop.set_background(paths[0])
-
 
 if __name__ == "__main__":
     main()
