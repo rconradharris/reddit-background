@@ -53,7 +53,7 @@ DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.
 DEFAULT_IMAGE_CHOOSER = 'bestmatch'
 DEFAULT_IMPRINT_POSITION_TOKENS = []
 DEFAULT_IMPRINT_SIZE_TOKENS = ['auto', 50, 8, 40]
-DEFAULT_IMPRINT_FONT_TOKENS = ['Arial', 50, '#E8BC61']
+DEFAULT_IMPRINT_FONT_TOKENS = ['Arial', 50, '#CCCCCC']
 
 # Regexs
 RE_RESOLUTION_DISPLAYS = re.compile("Resolution: (\d+)\sx\s(\d+)")

@@ -233,7 +233,7 @@ imprinting.  The others are optional.
 | transparency  | number from 0 to 100 for percent transparency (text box) | 40      |
 | font filename | filename of TrueType font on your system to use          | Arial   |
 | font size     | font size                                                | 50      |
-| font color    | hex code: #112233, or RGB triple: (255, 128, 75)         | #E8BC61 |
+| font color    | hex code: #112233, or RGB triple: (255, 128, 75)         | #CCCCCC |
 
 Example 1: the following configuration places the title at the bottom-left corner of the image. It
 uses the defaults for font and size:
