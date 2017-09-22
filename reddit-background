@@ -632,7 +632,6 @@ class Image(object):
         self.resolution_score = resolution_score
         self.jitter_score = jitter_score
         self.reddit_score = reddit_score
-        self.img = None  # cached image data so we don't load/save/reload/resave jpegs
 
     @property
     def display_title(self):
@@ -664,22 +663,21 @@ class Image(object):
             raise ImportError(u"Cannot fit image to desktop size because the python"
                     u" imaging library is not available.  Please install `pillow` or"
                     u" remove the fit option from your config.")
-        if self.img is None:
-            self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
-        image_ratio = float(self.img.width) / float(self.img.height)
+        img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
+        image_ratio = float(img.width) / float(img.height)
         desktop_ratio = float(desktop.width) / float(desktop.height)
         if image_ratio < desktop_ratio:
-            self.img = self.img.resize((int(desktop.height * image_ratio), desktop.height))
+            img = img.resize((int(desktop.height * image_ratio), desktop.height))
         else:
-            self.img = self.img.resize((desktop.width, int(desktop.width / image_ratio)))
+            img = img.resize((desktop.width, int(desktop.width / image_ratio)))
         canvas = pilImage.new('RGB', (desktop.width, desktop.height), (0, 0, 0))
-        canvas.paste(self.img, (max(0, int((desktop.width - self.img.width) / 2.0)), 
-            max(0, int((desktop.height - self.img.height) / 2.0))))
-        self.img = canvas
-        self.img.save(os.path.join(desktop.download_directory, self.filename), 
+        canvas.paste(img, (max(0, int((desktop.width - img.width) / 2.0)),
+            max(0, int((desktop.height - img.height) / 2.0))))
+        img = canvas
+        img.save(os.path.join(desktop.download_directory, self.filename),
             "JPEG", quality=85)
-        self.width = self.img.width
-        self.height = self.img.height
+        self.width = img.width
+        self.height = img.height
 
     def _wrap_text(self, draw, text, maxwidth, font):
         """Split text into lines that are less than maxwidth for a given PIL
@@ -723,15 +721,11 @@ class Image(object):
         if not self.full_title:
             return
 
-        if self.img is None:
-            self.img = pilImage.open(os.path.join(desktop.download_directory, 
-                self.filename))
-
         font = self._get_imprint_font(desktop)
 
-        self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
+        img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
 
-        draw = pilImageDraw.ImageDraw(self.img)
+        draw = pilImageDraw.ImageDraw(img)
         lineheight = draw.textsize(self.title, font=font)[1]
 
         conf = desktop.imprint_conf
@@ -746,27 +740,27 @@ class Image(object):
         if 'left' in conf.position_tokens:
             x = conf.margin
         elif 'right' in conf.position_tokens:        
-            x = max(conf.margin, self.img.width - maxwidth - conf.margin)
+            x = max(conf.margin, img.width - maxwidth - conf.margin)
         else:                            
-            x = max(conf.margin, (self.img.width - maxwidth) / 2) 
+            x = max(conf.margin, (img.width - maxwidth) / 2)
         if 'top' in conf.position_tokens:            
             y = conf.margin
         elif 'bottom' in conf.position_tokens:       
-            y = max(conf.margin, self.img.height - maxheight - conf.margin)
+            y = max(conf.margin, img.height - maxheight - conf.margin)
         else:                            
-            y = max(conf.margin, (self.img.height - maxheight) / 2)
+            y = max(conf.margin, (img.height - maxheight) / 2)
 
         # Draw the background box with transparent color, then composite with
         # the original image
-        canvas = pilImage.new('RGBA', self.img.size)
+        canvas = pilImage.new('RGBA', img.size)
         draw = pilImageDraw.ImageDraw(canvas)
         draw.rectangle((x - conf.padding, y - conf.padding, 
             x + maxwidth + conf.padding, y + maxheight + conf.padding), 
             fill=(0, 0, 0, int(255 * conf.transparency / 100.0)))
-        self.img = pilImage.alpha_composite(self.img.convert('RGBA'), canvas)
+        img = pilImage.alpha_composite(img.convert('RGBA'), canvas)
 
         # Draw the text
-        draw = pilImageDraw.ImageDraw(self.img)
+        draw = pilImageDraw.ImageDraw(img)
         fill = pilImageColor.getrgb(conf.font_color)
         if len(fill) != 3:
             fill = (255, 229, 204)
@@ -775,8 +769,8 @@ class Image(object):
             y += lineheight
 
         # Save the image
-        self.img = self.img.convert('RGB')
-        self.img.save(os.path.join(desktop.download_directory, self.filename), 
+        img = img.convert('RGB')
+        img.save(os.path.join(desktop.download_directory, self.filename),
             "JPEG", quality=85)
         
 
