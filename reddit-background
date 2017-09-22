@@ -724,22 +724,25 @@ class Image(object):
         if not self.full_title:
             return
 
-        font = self._get_imprint_font(desktop)
-
         img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
 
         draw = pilImageDraw.ImageDraw(img)
-        lineheight = draw.textsize(self.title, font=font)[1]
 
         conf = desktop.imprint_conf
         maxwidth = conf.box_width
 
+        font = self._get_imprint_font(desktop)
+
         lines = self._wrap_text(draw, self.full_title, maxwidth, font)
 
-        # Calculate the x and y
+        # Compute box height and width
         for line in lines:
             maxwidth = max(maxwidth, draw.textsize(line, font=font)[0])
+
+        lineheight = draw.textsize(self.title, font=font)[1]
         maxheight = len(lines) * lineheight 
+
+        # Calculate the x and y
         if 'left' in conf.position_tokens:
             x = conf.margin
         elif 'right' in conf.position_tokens:        
