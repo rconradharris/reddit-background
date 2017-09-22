@@ -227,7 +227,7 @@ imprinting.  The others are optional.
 |---------------|----------------------------------------------------------|---------|
 | horizontal    | top, center, bottom                                      | center  |
 | vertical      | left, center, right                                      | center  |
-| box width     | number of pixels before line wrap                        | 500     |
+| box width     | number of pixels before line wrap                        | 'auto'  |
 | margin        | number of pixels from the edge of image                  | 50      |
 | padding       | number of pixels inside of text box                      | 8       |
 | transparency  | number from 0 to 100 for percent transparency (text box) | 40      |

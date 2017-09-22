@@ -52,7 +52,7 @@ DEFAULT_DOWNLOAD_DIRECTORY = u"~/Reddit Backgrounds"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11"
 DEFAULT_IMAGE_CHOOSER = 'bestmatch'
 DEFAULT_IMPRINT_POSITION_TOKENS = []
-DEFAULT_IMPRINT_SIZE_TOKENS = [500, 50, 8, 40]
+DEFAULT_IMPRINT_SIZE_TOKENS = ['auto', 50, 8, 40]
 DEFAULT_IMPRINT_FONT_TOKENS = ['Arial', 50, '#E8BC61']
 
 # Regexs
@@ -434,7 +434,7 @@ class ImprintConf(object):
         
     def set_size_tokens(self, tokens):
         self.box_width = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
-            0, int, 'Invalid box width specified for title imprint: %s')
+            0, str, 'Invalid box width specified for title imprint: %s')
         self.margin = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
             1, int, 'Invalid box margin specified for title imprint: %s')
         self.padding = self._parse_token(tokens, DEFAULT_IMPRINT_SIZE_TOKENS,
@@ -729,15 +729,18 @@ class Image(object):
         draw = pilImageDraw.ImageDraw(img)
 
         conf = desktop.imprint_conf
-        maxwidth = conf.box_width
+
+        if conf.box_width.strip().lower() == 'auto':
+            maxwidth = desktop.width
+        else:
+            maxwidth = int(conf.box_width)
 
         font = self._get_imprint_font(desktop)
 
         lines = self._wrap_text(draw, self.full_title, maxwidth, font)
 
         # Compute box height and width
-        for line in lines:
-            maxwidth = max(maxwidth, draw.textsize(line, font=font)[0])
+        maxwidth = max(draw.textsize(l, font=font)[0] for l in lines)
 
         lineheight = draw.textsize(self.title, font=font)[1]
         maxheight = len(lines) * lineheight 
@@ -778,7 +781,7 @@ class Image(object):
             text_fill = (255, 229, 204)
         for line in lines:
             draw.text((text_x, text_y), line, font=font, fill=text_fill)
-            y += lineheight
+            text_y += lineheight
 
         # Save the image
         img = img.convert('RGB')
