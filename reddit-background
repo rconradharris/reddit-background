@@ -61,7 +61,6 @@ RE_TITLE_TAGS = re.compile('\[[^]]*]', flags=re.DOTALL)
 # Globals
 _VERBOSITY = 0
 _WHAT = False
-_DESKTOP_SYMLINK = False
 _DOWNLOAD_DIRECTORY = None
 _IMAGE_COUNT = 0
 _OS_HANDLER = None  # Set below...
@@ -90,15 +89,6 @@ def set_what(what):
 
 def get_what():
     return _WHAT
-
-
-def set_desktop_symlink(desktop_symlink):
-    global _DESKTOP_SYMLINK
-    _DESKTOP_SYMLINK = desktop_symlink
-
-
-def get_desktop_symlink():
-    return _DESKTOP_SYMLINK
 
 
 def set_download_directory(directory):
@@ -158,25 +148,6 @@ def log(msg, level=1):
     """
     if get_verbosity() >= level:
         print >> sys.stderr, msg
-
-
-def _clear_desktop_symlinks():
-    """The main purpose of the desktop symlink is to provide you an easy way
-    to see the title of your desktop without having to use the --what option.
-
-    (Assuming your desktop isn't too clutered ;-)
-    """
-    # Delete any existing desktop symlinks
-    download_directory = get_download_directory()
-    desktop_path = os.path.expanduser(u'~/Desktop')
-    for filename in os.listdir(desktop_path):
-        file_path = os.path.join(desktop_path, filename)
-        if not os.path.islink(file_path):
-            continue
-        real_path = os.path.realpath(file_path)
-        if real_path.startswith(download_directory):
-            log(u"Deleting desktop symlink '{}'".format(file_path))
-            os.unlink(file_path)
 
 
 class OSHandler(object):
@@ -534,11 +505,6 @@ class Desktop(object):
     def set_background(self, path):
         log(u'Setting background for desktop {0}'.format(self.num))
         _OS_HANDLER.set_background(path, num=self.num)
-        if get_desktop_symlink():
-            filename = os.path.basename(path)
-            desktop_path = os.path.expanduser('~/Desktop')
-            link_name = os.path.join(desktop_path, filename)
-            os.symlink(path, link_name)
 
 
 def _get_desktops_with_defaults():
@@ -911,10 +877,6 @@ def _read_config_file(desktops):
         except ConfigParser.NoOptionError:
             pass
         try:
-            set_desktop_symlink(config.getboolean('default', 'desktop_symlink'))
-        except ConfigParser.NoOptionError:
-            pass
-        try:
             download_directory = config.get('default', 'download_directory')
         except ConfigParser.NoOptionError:
             pass
@@ -949,9 +911,6 @@ def _handle_cli_options(desktops):
                  " images, it doesn't set the background)")
     parser.add_argument('--download-directory',
             help='directory to use to store images')
-    parser.add_argument('--desktop-symlink',
-            action='store_true',
-            help='show a symlink to the image on your desktop')
     parser.add_argument('--what',
             action='store_true',
             help='display what images are downloaded for each desktop')
@@ -983,9 +942,6 @@ def _handle_cli_options(desktops):
         desktops = [d for d in desktops if d.num == args.desktop]
         if isinstance(_OS_HANDLER, LinuxHandler):
             warn(u'--desktop is ignored on Linux systems')
-
-    if args.desktop_symlink:
-        set_desktop_symlink(args.desktop_symlink)
 
     for desktop in desktops:
         if args.subreddits:
@@ -1020,7 +976,6 @@ def main():
 
     image_count = get_image_count()
 
-    _clear_desktop_symlinks()
     _clear_download_directory()
 
     for desktop in desktops:

@@ -172,7 +172,7 @@ Currently, `fit` is the only scaling option available.
 ### Show Title of Image
 
 If you'd like to know the title of the background you're looking at, you have
-three different options.
+two different options.
 
 First, on the command-line you can run:
 
@@ -180,12 +180,7 @@ First, on the command-line you can run:
     Desktop 1
         Perth, Western Australia, from Elizabeth Quay [5376x3024].jpg
 
-Second, you can enable the `desktop_symlinks=True` configuration. This
-will place a symlink on you desktop to your current images. This gives you
-easy access to the image, but more importantly, shows you the title of the
-image.
-
-Third, you can imprint the title directly on the image itself.  This option
+Second, you can imprint the title directly on the image itself.  This option
 requires that you load additional modules into Python.  This option works
 best when paired with `image_scaling=fit`.
 
