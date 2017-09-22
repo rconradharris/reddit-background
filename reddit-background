@@ -757,18 +757,24 @@ class Image(object):
         # the original image
         canvas = pilImage.new('RGBA', img.size)
         draw = pilImageDraw.ImageDraw(canvas)
-        draw.rectangle((x - conf.padding, y - conf.padding, 
-            x + maxwidth + conf.padding, y + maxheight + conf.padding), 
-            fill=(0, 0, 0, int(255 * conf.transparency / 100.0)))
+
+        box_x0 = x - conf.padding
+        box_y0 = y - conf.padding
+        box_x1 = x + maxwidth + conf.padding
+        box_y1 = y + maxheight + conf.padding
+        box_fill = (0, 0, 0, int(255 * conf.transparency / 100.0))
+        draw.rectangle((box_x0, box_y0, box_x1, box_y1), fill=box_fill)
         img = pilImage.alpha_composite(img.convert('RGBA'), canvas)
 
         # Draw the text
         draw = pilImageDraw.ImageDraw(img)
-        fill = pilImageColor.getrgb(conf.font_color)
-        if len(fill) != 3:
-            fill = (255, 229, 204)
+        text_x = x
+        text_y = y
+        text_fill = pilImageColor.getrgb(conf.font_color)
+        if len(text_fill) != 3:
+            text_fill = (255, 229, 204)
         for line in lines:
-            draw.text((x, y), line, font=font, fill=fill)
+            draw.text((text_x, text_y), line, font=font, fill=text_fill)
             y += lineheight
 
         # Save the image
