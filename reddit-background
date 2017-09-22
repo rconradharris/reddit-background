@@ -666,7 +666,10 @@ class Image(object):
         img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
         image_ratio = float(img.width) / float(img.height)
         desktop_ratio = float(desktop.width) / float(desktop.height)
-        if image_ratio < desktop_ratio:
+        if image_ratio == desktop_ratio:
+            # If exact match, then no resize necessary...
+            return
+        elif image_ratio < desktop_ratio:
             img = img.resize((int(desktop.height * image_ratio), desktop.height))
         else:
             img = img.resize((desktop.width, int(desktop.width / image_ratio)))
