@@ -681,6 +681,27 @@ class Image(object):
         self.width = self.img.width
         self.height = self.img.height
 
+    def _wrap_text(self, draw, text, maxwidth, font):
+        """Split text into lines that are less than maxwidth for a given PIL
+        font
+        """
+        lines = []
+        for tl in text.splitlines():
+            start = 0
+            curparts = []
+            for part in ( t for t in tl.split() if t ):
+                curparts.append(part)
+                if draw.textsize(u' '.join(curparts), font=font)[0] > maxwidth:
+                    if len(curparts) == 1:
+                        lines.append(u' '.join(curparts))
+                        curparts = []
+                    else:
+                        lines.append(u' '.join(curparts[:-1]))
+                        curparts = [ curparts[-1] ]
+            if len(curparts) > 0:
+                lines.append(u' '.join(curparts))
+        return lines
+
     def imprint_title(self, desktop):
         if not pil_available:
             raise ImportError(u"Cannot imprint title on image because the python imaging"
@@ -700,26 +721,14 @@ class Image(object):
                  u" often the same). Trying `Arial.ttf` instead." % conf.font_filename)
             font = pilImageFont.truetype('Arial', conf.font_size)
         self.img = pilImage.open(os.path.join(desktop.download_directory, self.filename))
+
         draw = pilImageDraw.ImageDraw(self.img)
         lineheight = draw.textsize(self.title, font=font)[1]
         maxwidth = conf.box_width
         color = pilImageColor.getrgb(conf.font_color)
-        # split the title into lines that are less than maxwidth
-        lines = []
-        for title in self.full_title.splitlines():
-            start = 0
-            curparts = []
-            for part in ( t for t in title.split() if t ):
-                curparts.append(part)
-                if draw.textsize(u' '.join(curparts), font=font)[0] > maxwidth:
-                    if len(curparts) == 1:
-                        lines.append(u' '.join(curparts))
-                        curparts = []
-                    else:  
-                        lines.append(u' '.join(curparts[:-1]))
-                        curparts = [ curparts[-1] ]
-            if len(curparts) > 0:
-                lines.append(u' '.join(curparts))
+
+        lines = self._wrap_text(draw, self.full_title, maxwidth, font)
+
         # calculate the x and y
         for line in lines:
             maxwidth = max(maxwidth, draw.textsize(line, font=font)[0])
