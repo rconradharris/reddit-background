@@ -577,6 +577,16 @@ def _get_northern_hemisphere_season():
     else:
         return 'winter'
 
+def slugify(value):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    """
+    import unicodedata
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
+    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+    value = unicode(re.sub('[-\s]+', '-', value))
+    return value
 
 class Image(object):
     TITLE_MAX_LENGTH = 64
@@ -611,9 +621,8 @@ class Image(object):
 
     @property
     def filename(self):
-        filename = self.display_title.replace(u'/', u'')\
-                                     .replace(u'\\', u'')\
-                                     .replace(u'.', u'')
+        filename = slugify(self.display_title)
+        
         # Get extension from URL
         url_path = urlparse.urlparse(self.url).path
         parts = url_path.rsplit('.', 1)
