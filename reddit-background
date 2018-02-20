@@ -599,7 +599,7 @@ class Image(object):
                  reddit_score=0.0):
         self.width = width
         self.height = height
-        self.url = url
+        self._url = url
         self.title = title
         self.raw_reddit_score = raw_reddit_score
         self.score = score
@@ -607,6 +607,10 @@ class Image(object):
         self.resolution_score = resolution_score
         self.jitter_score = jitter_score
         self.reddit_score = reddit_score
+
+    @property
+    def url(self):
+        return self._url.replace('amp;', '')
 
     @property
     def display_title(self):
